@@ -1,0 +1,797 @@
+/* ============================================================
+   线性代数交互式学习系统 — 可拖拽停靠面板样式
+   ============================================================ */
+
+:root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-tertiary: #0f3460;
+    --bg-nav: #10101c;
+    --bg-panel: #12121f;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0b8;
+    --text-muted: #666680;
+    --accent: #4cc9f0;
+    --accent-hover: #5ed4f7;
+    --green: #06d6a0;
+    --red: #ef476f;
+    --yellow: #ffd166;
+    --orange: #f77f00;
+    --blue: #118ab2;
+    --border: #2a2a45;
+    --radius: 8px;
+    --radius-sm: 4px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+body {
+    display: flex;
+    flex-direction: row;
+}
+
+/* ===== 左栏 ===== */
+#left-column {
+    width: 260px;
+    min-width: 260px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background: var(--bg-nav);
+    border-right: 1px solid var(--border);
+    z-index: 10;
+    position: relative;
+    transition: width 0.25s ease, min-width 0.25s ease;
+}
+
+#left-column.collapsed {
+    width: 32px;
+    min-width: 32px;
+}
+
+#left-column.collapsed #dock-left {
+    display: none;
+}
+
+/* ===== 侧栏折叠按钮 ===== */
+.sidebar-toggle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    width: 22px;
+    height: 60px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease, background 0.15s ease;
+    padding: 0;
+    line-height: 1;
+}
+
+.sidebar-toggle:hover {
+    color: var(--accent);
+    background: var(--bg-tertiary);
+}
+
+/* 左栏按钮在右侧边缘 */
+#left-column .sidebar-toggle {
+    right: -11px;
+    border-left: 1px solid var(--border);
+}
+
+/* 右栏按钮在左侧边缘 */
+#right-column .sidebar-toggle {
+    left: -11px;
+    border-right: 1px solid var(--border);
+}
+
+/* 折叠状态下箭头反向 */
+#left-column.collapsed .sidebar-toggle {
+    right: -11px;
+}
+#right-column.collapsed .sidebar-toggle {
+    left: -11px;
+}
+
+/* ===== 场景菜单按钮（在面板内） ===== */
+.menu-label {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    padding: 10px 2px 4px;
+}
+
+.scene-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 5px 10px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    border-left: 3px solid transparent;
+    border-radius: 0;
+}
+
+.scene-btn:hover {
+    background: rgba(76, 201, 240, 0.06);
+    color: var(--text-primary);
+}
+
+.scene-btn.active {
+    background: rgba(76, 201, 240, 0.1);
+    color: var(--accent);
+    border-left-color: var(--accent);
+    font-weight: 600;
+}
+
+/* ===== 左停靠区 ===== */
+#dock-left {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ===== 中栏：3D 视图 ===== */
+#viewer {
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    position: relative;
+    background: var(--bg-primary);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#viewer:active { cursor: grabbing; }
+#viewer canvas { display: block; }
+
+.viewer-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* ===== 右栏 ===== */
+#right-column {
+    width: 340px;
+    min-width: 340px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    z-index: 10;
+    position: relative;
+    transition: width 0.25s ease, min-width 0.25s ease;
+}
+
+#right-column.collapsed {
+    width: 32px;
+    min-width: 32px;
+}
+
+#right-column.collapsed #scene-info-header,
+#right-column.collapsed #dock-right {
+    display: none;
+}
+
+/* 场景信息头（右栏顶部，不可拖拽） */
+#scene-info-header {
+    flex-shrink: 0;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+#scene-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+#scene-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* ===== 停靠区通用样式 ===== */
+.dock-zone {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-height: 40px;
+    transition: background-color 0.15s ease;
+}
+
+/* 浮动叠加停靠区 */
+.dock-overlay {
+    position: absolute;
+    z-index: 10;
+    flex: none;
+    background: transparent;
+    pointer-events: auto;
+}
+
+#dock-top {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+#dock-bottom {
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+/* 空区域占位提示 */
+.zone-placeholder {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    padding: 24px 16px;
+    text-align: center;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    margin: 4px;
+    opacity: 0.6;
+}
+
+.dock-zone.empty .zone-placeholder {
+    display: flex;
+}
+
+.dock-overlay.empty .zone-placeholder {
+    padding: 8px 24px;
+}
+
+/* 拖拽悬停高亮 */
+.dock-zone.drag-over {
+    background: rgba(76, 201, 240, 0.06);
+    outline: 2px dashed var(--accent);
+    outline-offset: -1px;
+    border-radius: var(--radius);
+}
+
+/* 插入指示线 */
+.insertion-indicator {
+    height: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(76, 201, 240, 0.6);
+    flex-shrink: 0;
+    pointer-events: none;
+}
+#dock-top .insertion-indicator,
+#dock-bottom .insertion-indicator {
+    height: auto;
+    width: 3px;
+}
+
+/* ===== 面板卡片 ===== */
+.dock-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    transition: box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.dock-panel:hover {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dock-panel.dragging {
+    opacity: 0.4;
+}
+
+/* 横向区域的 panel：自适应撑满可用空间 */
+#dock-top .dock-panel,
+#dock-bottom .dock-panel {
+    flex: 1 1 auto;
+    min-width: 200px;
+    max-width: none;
+}
+
+/* 面板头部（拖拽把手） */
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    background: var(--bg-tertiary);
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    flex-shrink: 0;
+    min-height: 30px;
+}
+
+.panel-header:active {
+    cursor: grabbing;
+}
+
+.panel-grip {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    cursor: grab;
+    letter-spacing: -2px;
+}
+
+.panel-title {
+    flex: 1;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.panel-collapse-btn {
+    flex-shrink: 0;
+    width: 22px; height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, color 0.12s ease;
+}
+
+.panel-collapse-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* 面板内容区 */
+.panel-body {
+    padding: 8px 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    max-height: 420px;
+    transition: max-height 0.2s ease, padding 0.2s ease;
+}
+
+/* ===== 面板 Resize 手柄 ===== */
+.panel-resize-handle {
+    flex-shrink: 0;
+    transition: background-color 0.15s ease;
+    z-index: 5;
+}
+
+/* 纵向区域：底部 resize */
+.panel-resize-vertical {
+    height: 5px;
+    min-height: 5px;
+    cursor: ns-resize;
+    background: transparent;
+    border-top: 1px solid transparent;
+}
+
+.panel-resize-vertical:hover,
+.dock-panel.resizing .panel-resize-vertical {
+    background: rgba(76, 201, 240, 0.15);
+    border-top-color: var(--accent);
+}
+
+/* 横向区域：右侧 resize */
+.panel-resize-horizontal {
+    width: 5px;
+    min-width: 5px;
+    cursor: ew-resize;
+    background: transparent;
+    border-left: 1px solid transparent;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.panel-resize-horizontal:hover,
+.dock-panel.resizing .panel-resize-horizontal {
+    background: rgba(76, 201, 240, 0.15);
+    border-left-color: var(--accent);
+}
+
+/* resize 进行中：防止 iframe/iframe 捕获鼠标 */
+.dock-panel.resizing {
+    pointer-events: none;
+}
+
+.dock-panel.resizing .panel-resize-handle {
+    pointer-events: auto;
+}
+
+/* 折叠状态 */
+.dock-panel.collapsed .panel-body {
+    max-height: 0 !important;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
+.dock-panel.collapsed .panel-collapse-btn {
+    transform: rotate(-90deg);
+}
+
+/* ===== 面板内容区样式（复用原有组件） ===== */
+
+/* 预设按钮 */
+.preset-btn {
+    padding: 4px 10px;
+    margin: 2px 3px 2px 0;
+    font-size: 0.76rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+.preset-btn:hover {
+    border-color: var(--accent);
+    background: rgba(76, 201, 240, 0.1);
+}
+
+.preset-btn.active {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.preset-btn.type-unique    { border-left: 3px solid var(--blue); }
+.preset-btn.type-none      { border-left: 3px solid var(--red); }
+.preset-btn.type-infinite  { border-left: 3px solid var(--green); }
+.preset-btn.type-degenerate { border-left: 3px solid var(--orange); }
+
+/* 参数滑块 */
+.param-row {
+    margin-bottom: 8px;
+}
+
+.param-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.param-label .name {
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+}
+
+.param-input-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.param-input-row input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+}
+
+.param-input-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+.param-input-row input[type="number"] {
+    width: 54px;
+    padding: 2px 4px;
+    font-size: 0.74rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.param-input-row input[type="number"]:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+/* 矩阵输入网格（矩阵计算器等场景） */
+.matrix-input-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    margin-top: 4px;
+}
+
+.matrix-input-row {
+    display: flex;
+    gap: 3px;
+}
+
+.matrix-input-row input {
+    width: 100%;
+    padding: 4px 5px;
+    font-size: 0.76rem;
+    font-family: 'Courier New', monospace;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    text-align: center;
+    min-width: 0;
+}
+
+.matrix-input-row input:focus {
+    border-color: var(--accent);
+    outline: none;
+    background: var(--bg-tertiary);
+}
+
+/* 视角按钮 */
+.camera-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.cam-btn {
+    padding: 3px 8px;
+    font-size: 0.73rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+.cam-btn:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+/* 分析结果 */
+.solution-type {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.73rem;
+    font-weight: 600;
+}
+
+.solution-type.unique   { background: rgba(17, 138, 178, 0.3); color: var(--accent); }
+.solution-type.none     { background: rgba(239, 71, 111, 0.3); color: var(--red); }
+.solution-type.infinite { background: rgba(6, 214, 160, 0.3); color: var(--green); }
+
+/* 验证面板 */
+.verify-check {
+    font-size: 0.76rem;
+    padding: 2px 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.verify-check .icon { font-size: 0.82rem; }
+.verify-check.passed { color: var(--green); }
+.verify-check.failed { color: var(--red); }
+
+/* 矩阵显示（面板内部） */
+.matrix-item {
+    margin-bottom: 10px;
+}
+
+.matrix-item:last-child {
+    margin-bottom: 0;
+}
+
+.matrix-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.matrix-katex {
+    font-size: 0.82rem;
+    overflow-x: auto;
+    padding: 2px 0;
+}
+
+/* ===== 加载与错误覆盖层 ===== */
+#loading-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(26, 26, 46, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+}
+
+.spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#loading-overlay p {
+    margin-top: 12px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+#error-overlay {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(239, 71, 111, 0.15);
+    border: 1px solid var(--red);
+    border-radius: var(--radius);
+    padding: 16px 24px;
+    z-index: 20;
+    max-width: 400px;
+    text-align: center;
+}
+#error-message {
+    color: var(--red);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+/* ===== 矩阵排版（由 panel body 的 data-orientation 属性驱动） ===== */
+/* 面板被放入横向区域时，矩阵项横排；纵向区域时竖排 */
+.panel-body[data-orientation="horizontal"] {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.panel-body[data-orientation="vertical"] {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+}
+
+/* 横向排版时每个矩阵项设置最小宽度 */
+.panel-body[data-orientation="horizontal"] .matrix-item {
+    min-width: 200px;
+    flex-shrink: 0;
+}
+
+/* ===== 滚动条（暗色主题） ===== */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a45 transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+    border: none;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: #2a2a45;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: #3a3a5a;
+}
+
+*::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* ─── 讲解面板（KaTeX 数学公式） ────────────────────────── */
+
+.lecture-section {
+    margin-bottom: 10px;
+}
+
+.lecture-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 3px;
+}
+
+.lecture-content {
+    font-size: 0.76rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+}
+
+.lecture-content strong {
+    color: var(--text-primary);
+}
+
+.lecture-content .katex-display {
+    margin: 6px 0;
+}
+
+.lecture-content .katex {
+    font-size: 1.05em;
+}

@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "启动服务器",
+            "type": "shell",
+            "command": "D:\\Users\\fkl\\anaconda3\\envs\\xianxingdaishu\\python.exe",
+            "args": [
+                "${workspaceFolder}/app.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}

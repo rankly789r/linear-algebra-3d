@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>线性代数交互式学习系统</title>
+
+    <!-- KaTeX 数学公式渲染 -->
+    <link rel="stylesheet" href="https://unpkg.com/katex@0.16.11/dist/katex.min.css">
+    <script src="https://unpkg.com/katex@0.16.11/dist/katex.min.js"></script>
+
+    <!-- Three.js 3D 渲染（本地文件，无 CDN 依赖）-->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "/client/js/vendor/three.module.js",
+                "three/addons/": "/client/js/vendor/"
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="/client/css/style.css">
+</head>
+<body>
+    <!-- ===== 左栏：停靠区（场景菜单面板默认在此） ===== -->
+    <div id="left-column">
+        <button id="toggle-left" class="sidebar-toggle" title="收起/展开左栏">◀</button>
+        <div id="dock-left" class="dock-zone empty" data-zone="left">
+            <div class="zone-placeholder">拖拽面板到此处</div>
+        </div>
+    </div>
+
+    <!-- ===== 中栏：3D 视图 + 浮动停靠区 ===== -->
+    <div id="viewer">
+        <canvas id="three-canvas"></canvas>
+
+        <!-- 顶部浮动停靠区 -->
+        <div id="dock-top" class="dock-zone dock-overlay empty" data-zone="top">
+            <div class="zone-placeholder">拖拽面板到此处</div>
+        </div>
+
+        <!-- 底部浮动停靠区 -->
+        <div id="dock-bottom" class="dock-zone dock-overlay empty" data-zone="bottom">
+            <div class="zone-placeholder">拖拽面板到此处</div>
+        </div>
+
+        <!-- 提示文字 -->
+        <div class="viewer-hint">🖱 拖拽旋转 | 滚轮缩放 | 右键平移</div>
+
+        <div id="loading-overlay" style="display:none;">
+            <div class="spinner"></div>
+            <p>计算中...</p>
+        </div>
+        <div id="error-overlay" style="display:none;">
+            <p id="error-message"></p>
+        </div>
+    </div>
+
+    <!-- ===== 右栏：场景信息 + 停靠区 ===== -->
+    <div id="right-column">
+        <button id="toggle-right" class="sidebar-toggle" title="收起/展开右栏">▶</button>
+        <div id="scene-info-header">
+            <h3 id="scene-title">选择一个场景开始</h3>
+            <p id="scene-desc"></p>
+        </div>
+
+        <!-- 右停靠区 -->
+        <div id="dock-right" class="dock-zone empty" data-zone="right">
+            <div class="zone-placeholder">拖拽面板到此处</div>
+        </div>
+    </div>
+
+    <!-- 恢复上次会话的场景 -->
+    <script>
+        const lastScene = localStorage.getItem('la_current_scene');
+        if (lastScene) {
+            document.documentElement.dataset.restoreScene = lastScene;
+        }
+    </script>
+
+    <script type="module" src="/client/js/main.js"></script>
+</body>
+</html>

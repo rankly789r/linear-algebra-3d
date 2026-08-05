@@ -1,0 +1,41 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🚀 启动线性代数学习系统",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/app.py",
+            "python": "D:\\Users\\fkl\\anaconda3\\envs\\xianxingdaishu\\python.exe",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONUNBUFFERED": "1"
+            },
+            "serverReadyAction": {
+                "pattern": "Uvicorn running on (https?://\\S+)",
+                "action": "openExternally"
+            },
+            "presentation": {
+                "hidden": false,
+                "group": "linear-algebra",
+                "order": 1
+            }
+        },
+        {
+            "name": "🔍 调试模式（详细日志）",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/app.py",
+            "python": "D:\\Users\\fkl\\anaconda3\\envs\\xianxingdaishu\\python.exe",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONUNBUFFERED": "1",
+                "LOG_LEVEL": "debug"
+            }
+        }
+    ]
+}
