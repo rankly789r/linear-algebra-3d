@@ -188,7 +188,15 @@ Response: { success, data: { reply: "..." } }
 - 界面全中文 · 数学公式 LaTeX（兼容 Obsidian） · 参数：滑块+数值输入双向联动
 - 每场景 3-5 个预设 · 验证面板默认折叠 · 笔记交 Obsidian AI 管家整理
 
-## 十一、AI 行为守则
+## 十一、AI 角色分工
+
+本项目有 3 个专职 AI 角色，各自维护独立的提示词文件：
+
+| 角色 | 提示词 | 职责 |
+|------|--------|------|
+| 🔍 AI 审计员 | [docs/audit/AI_AUDITOR_PROMPT.md](docs/audit/AI_AUDITOR_PROMPT.md) | 代码审查、安全审计、质量把关 |
+| 🖥️ AI 面板负责人 | [docs/AI_PANEL_LEAD_PROMPT.md](docs/AI_PANEL_LEAD_PROMPT.md) | 所有 UI/面板/CSS/持久化 |
+| 🎓 AI 场景开发者 | *（待创建）* | 新增/修改数学场景 |
 
 > 修改此项目前，必须阅读：
 > - **架构约束与已知陷阱** → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（第六节「已知问题与注意事项」）
