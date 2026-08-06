@@ -7,6 +7,7 @@ DeepSeek API 兼容 OpenAI Chat Completions 格式。
 import os
 import json
 import httpx
+import certifi
 
 # DeepSeek API 配置
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
@@ -76,21 +77,25 @@ def build_system_prompt(scene_data: dict) -> str:
 4. 回答简洁有力，一般 150-350 字
 5. 如果学生的问题超出当前场景范围，也可以基于你的线性代数知识回答
 
-=== 修改场景参数（工具调用）===
-如果需要通过修改矩阵参数来演示某个概念（例如展示对角矩阵、奇异矩阵、对称矩阵等），
-请在回复末尾单独一行输出以下 JSON 代码块：
+=== 修改场景参数（重要：你**有能力**直接操作！）===
+你拥有直接修改学生界面中矩阵参数的能力。这不是请求，而是你的内置功能。
+当学生要求你演示某个概念（如对角矩阵、奇异矩阵、对称矩阵等），你**必须**直接
+通过工具调用来修改参数，而不是说「我没有权限」或「我无法修改」。
+
+**绝对禁止**说「我没有修改矩阵数据的权限」「无法直接改动界面」——你有这个能力！
+
+在回复末尾用 ```json ``` 代码块输出工具调用：
 
 ```json
-{"action": "set_params", "reason": "改为对角矩阵以展示...", "params": {"a11": 3, "a12": 0, ...}}
+{{"action": "set_params", "reason": "改为对角矩阵以展示特征值", "params": {{"a11": 3, "a12": 0, "a21": 0, "a22": 5}}}}
 ```
 
 规则：
 - JSON 必须用 ```json ``` 包裹，放在回复最后面
-- reason 字段用一句话解释为什么要改参数
-- params 字段只包含需要修改的参数名和值
-- 只修改与当前场景相关的参数（如 2×2 矩阵场景就只改 a11/a12/a21/a22）
-- 不要捏造不存在的参数名
-- 如果不确定参数名，就不要使用工具调用，只用文字说明
+- reason 字段用一句话解释为什么要改参数（会显示在确认卡片上）
+- params 字段只包含要修改的参数名和新值
+- 只修改当前场景已有的参数（2×2 矩阵就用 a11/a12/a21/a22）
+- 不知道参数名时只用文字说明，不要捏造
 
 === 格式示例 ===
 学生问："秩是多少？"
@@ -191,7 +196,7 @@ $$
 4. 绝对禁止使用 \\(...\\) 或 \\[...\\] 格式
 5. 结合当前矩阵数据来写，不要写空泛的理论
 6. 如果有学生与 AI 的交流记录，将交流中澄清的概念融入笔记
-7. 笔记长度控制在 500-1000 字"""
+7. 笔记总字数严格控制在 2000 字以内（约 1200 tokens），超出会被截断丢失内容"""
     return prompt
 
 
@@ -199,6 +204,7 @@ async def ask_deepseek(
     system_prompt: str,
     messages: list[dict],
     api_key: str | None = None,
+    max_tokens: int = 2048,
 ) -> dict:
     """
     调用 DeepSeek Chat API。
@@ -207,6 +213,7 @@ async def ask_deepseek(
         system_prompt: 系统提示词（包含场景数据上下文）
         messages: 历史消息列表，格式 [{"role": "user"|"assistant", "content": "..."}]
         api_key: DeepSeek API Key，不传则从环境变量或默认值获取
+        max_tokens: 最大输出 token 数（默认 2048，笔记生成建议 4096）
 
     返回：
         {"success": True, "reply": "AI 的回答文本"}
@@ -225,7 +232,7 @@ async def ask_deepseek(
     full_messages.extend(messages)
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=60.0, verify=certifi.where()) as client:
             response = await client.post(
                 f"{DEEPSEEK_BASE_URL}/chat/completions",
                 headers={
@@ -236,7 +243,7 @@ async def ask_deepseek(
                     "model": DEEPSEEK_CHAT_MODEL,
                     "messages": full_messages,
                     "temperature": 0.7,
-                    "max_tokens": 1024,
+                    "max_tokens": max_tokens,
                 },
             )
 

@@ -72,6 +72,8 @@ window.panelManager = panelManager;
         <button class="scene-btn" data-scene="ch3_r4_2x2_system">3.4 2×2 方程组</button>
         <button class="scene-btn" data-scene="ch3_r5_3x3_system">3.5 3×3 方程组</button>
         <button class="scene-btn" data-scene="ch3_r6_homogeneous">3.6 齐次 vs 非齐次</button>
+        <button class="scene-btn" data-scene="ch3_r6b_nullspace">3.6B 零空间（齐次解）</button>
+        <button class="scene-btn" data-scene="ch3_r7b_col_space">3.7B 列空间与解的存在性</button>
         <button class="scene-btn" data-scene="ch3_r7_rank_solution">3.7 秩与解的关系</button>
 
         <div class="menu-label" style="font-size:0.7rem;opacity:0.7;margin-top:2px;">初等变换</div>
@@ -240,6 +242,8 @@ import { Ch2R4CramerRenderer } from './renderers/ch2_r4_cramer.js';
 import { Ch3R9GaussianRenderer } from './renderers/ch3_r9_gaussian.js';
 import { Ch1R3PermutationRenderer } from './renderers/ch1_r3_permutation.js';
 import { EquationToPlaneRenderer } from './renderers/ch1_r0_equation_to_plane.js';
+import { ColSpaceRenderer } from './renderers/ch3_r7b_col_space.js';
+import { NullspaceRenderer } from './renderers/ch3_r6b_nullspace.js';
 
 const SCENE_RENDERERS = {
     'ch0_r0_matrix_columns': MatrixColumnsRenderer,
@@ -251,6 +255,8 @@ const SCENE_RENDERERS = {
     'ch3_r0_rank_intuition': RankIntuitionRenderer,
     'ch3_r3_matrix_rank': MatrixRankRenderer,
     'ch3_r6_homogeneous': HomogeneousRenderer,
+    'ch3_r7b_col_space': ColSpaceRenderer,
+    'ch3_r6b_nullspace': NullspaceRenderer,
     'ch3_r7_rank_solution': RankSolutionRenderer,
     'ch3_r8_rank_properties': RankPropertiesRenderer,
     'matrix_calculator': MatrixCalculatorRenderer,
@@ -808,6 +814,49 @@ function getSceneMeta(sceneName) {
                 { label: 'r(A)=1, 齐次→面', type: 'infinite', params: { a11:1,a12:1,a13:1,b1:0, a21:2,a22:2,a23:2,b2:0 } },
                 { label: '非齐次有解→平移', type: 'unique', params: { a11:1,a12:1,a13:1,b1:2, a21:1,a22:-1,a23:0,b2:0 } },
                 { label: '非齐次无解', type: 'none', params: { a11:1,a12:1,a13:1,b1:2, a21:2,a22:2,a23:2,b2:5 } },
+            ]
+        },
+        'ch3_r7b_col_space': {
+            id: 'ch3_r7b_col_space',
+            title: '3.7B 列空间与解的存在性',
+            description: '列空间可视化：b在列空间内⇔有解，b在列空间外⇔无解。r(A)=r(A|b) 就是这个判断的代数表述。',
+            params: {
+                a11: { label: 'a₁₁', type: 'float', default: 1, min: -5, max: 5, step: 0.1 },
+                a12: { label: 'a₁₂', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                a21: { label: 'a₂₁', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                a22: { label: 'a₂₂', type: 'float', default: 1, min: -5, max: 5, step: 0.1 },
+                a31: { label: 'a₃₁', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                a32: { label: 'a₃₂', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                b1: { label: 'b₁', type: 'float', default: 2, min: -10, max: 10, step: 0.1 },
+                b2: { label: 'b₂', type: 'float', default: 3, min: -10, max: 10, step: 0.1 },
+                b3: { label: 'b₃', type: 'float', default: 0, min: -10, max: 10, step: 0.1 },
+            },
+            presets: [
+                { label: 'b在列空间内（有解）', type: 'unique', params: { a11:1,a12:0,a21:0,a22:1,a31:0,a32:0,b1:2,b2:3,b3:0 } },
+                { label: 'b在列空间外（无解）', type: 'none', params: { a11:1,a12:0,a21:0,a22:1,a31:0,a32:0,b1:2,b2:3,b3:2 } },
+                { label: '秩为1，b在线内（无穷解）', type: 'infinite', params: { a11:1,a12:2,a21:1,a22:2,a31:1,a32:2,b1:3,b2:3,b3:3 } },
+                { label: '秩为1，b在线外（无解）', type: 'none', params: { a11:1,a12:2,a21:1,a22:2,a31:1,a32:2,b1:3,b2:3,b3:4 } },
+            ]
+        },
+        'ch3_r6b_nullspace': {
+            id: 'ch3_r6b_nullspace',
+            title: '3.6B 零空间（齐次方程组的解）',
+            description: '齐次方程组 Ax=0：三张过原点的平面，交集=零空间。秩越低，零空间越大。dim(nullspace) = 3 - r(A)。',
+            params: {
+                a11: { label: 'a₁₁', type: 'float', default: 1, min: -3, max: 3, step: 0.1 },
+                a12: { label: 'a₁₂', type: 'float', default: 0, min: -3, max: 3, step: 0.1 },
+                a13: { label: 'a₁₃', type: 'float', default: 0, min: -3, max: 3, step: 0.1 },
+                a21: { label: 'a₂₁', type: 'float', default: 0, min: -3, max: 3, step: 0.1 },
+                a22: { label: 'a₂₂', type: 'float', default: 1, min: -3, max: 3, step: 0.1 },
+                a23: { label: 'a₂₃', type: 'float', default: 0, min: -3, max: 3, step: 0.1 },
+                a31: { label: 'a₃₁', type: 'float', default: 0, min: -3, max: 3, step: 0.1 },
+                a32: { label: 'a₃₂', type: 'float', default: 0, min: -3, max: 3, step: 0.1 },
+                a33: { label: 'a₃₃', type: 'float', default: 1, min: -3, max: 3, step: 0.1 },
+            },
+            presets: [
+                { label: 'r=3 只有零解', type: 'unique', params: { a11:1,a12:0,a13:0, a21:0,a22:1,a23:0, a31:0,a32:0,a33:1 } },
+                { label: 'r=2 解是一条直线', type: 'infinite', params: { a11:1,a12:0,a13:0, a21:0,a22:1,a23:0, a31:2,a32:3,a33:0 } },
+                { label: 'r=1 解是一个平面', type: 'infinite', params: { a11:1,a12:0,a13:0, a21:2,a22:0,a23:0, a31:-1,a32:0,a33:0 } },
             ]
         },
         'ch3_r7_rank_solution': {

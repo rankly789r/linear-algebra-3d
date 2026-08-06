@@ -280,7 +280,7 @@ async def generate_note(request: Request):
 
     result = await ask_deepseek(system_prompt, [
         {"role": "user", "content": "请根据以上信息生成学习笔记。"}
-    ], api_key=api_key)
+    ], api_key=api_key, max_tokens=4096)
 
     if result.get("success"):
         return JSONResponse({

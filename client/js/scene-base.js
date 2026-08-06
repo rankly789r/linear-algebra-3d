@@ -1159,6 +1159,15 @@ export class SceneRenderer {
      * @param {HTMLElement} cardEl - 确认卡片元素，用于替换为结果
      */
     async _applyAIParams(newParams, cardEl) {
+        // 确保 this.params 包含所有默认值
+        if (this.meta.params) {
+            for (const [key, def] of Object.entries(this.meta.params)) {
+                if (!(key in this.params)) {
+                    this.params[key] = def.default;
+                }
+            }
+        }
+
         // 合并新参数到当前参数
         const merged = { ...this.params, ...newParams };
 
@@ -1169,18 +1178,23 @@ export class SceneRenderer {
                 return;
             }
 
+            if (!result.data?.scene_data) {
+                this._replaceToolCard(cardEl, 'error', '后端返回数据异常：缺少 scene_data');
+                return;
+            }
+
             // 更新参数
             Object.assign(this.params, newParams);
             // 同步 UI 滑块
-            this._syncParamInputs();
+            this._syncParamsToUI();
 
             // 更新场景
             this._lastComputeResult = result.data;
-            this.buildScene(result.data.scene_data);
-            this._updateSolutionPanel(result.data);
+            this.buildScene(result.data);
+            this._updateSolutionInfo(result.data);
             this._updateLecturePanel(result.data);
             this._updateVerifyPanel(result.data);
-            this._updateMatrixPanel(result.data);
+            this._updateMatrixDisplay(result.data);
 
             this._replaceToolCard(cardEl, 'success', '✓ 参数已应用，验证通过');
         } catch (err) {
