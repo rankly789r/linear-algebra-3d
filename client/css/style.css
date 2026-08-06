@@ -297,15 +297,26 @@ body {
     display: none !important;
 }
 
+/* 无面板时隐藏场景信息头（防止文字在窄列中竖排） */
+#right-column.no-panels #scene-info-header {
+    display: none !important;
+}
+
 /* 拖拽进行中：空列显示为可见的拖放接收区 */
 body.is-dragging #left-column.no-panels,
 body.is-dragging #right-column.no-panels {
-    width: 40px !important;
-    min-width: 40px !important;
+    width: 60px !important;
+    min-width: 60px !important;
     overflow: visible;
     transition: none; /* 立即出现，不等 0.2s 过渡 */
     background: rgba(76, 201, 240, 0.06);
-    border: 1px dashed rgba(76, 201, 240, 0.2);
+    border: 1px dashed rgba(76, 201, 240, 0.25);
+}
+
+/* 拖拽时强制显示空列的 dock 区（覆盖 .collapsed 的 display:none） */
+body.is-dragging #left-column.no-panels #dock-left,
+body.is-dragging #right-column.no-panels #dock-right {
+    display: flex !important;
 }
 
 /* 拖拽悬停在空列上：展开以显示 "拖拽面板到此处" */
