@@ -284,41 +284,41 @@ let currentSceneName = null;
     // ═══════════════════════════════════════════════════════
 
     const gridBody = document.getElementById('settings-grid-body');
-    (function buildGridUI() {
+    const gridRangeSlider = (function buildGridUI() {
         const gs = _loadGridSettings();
+        const currentRange = gs.range ?? 5;
 
-        function makeRow(label, key, min, max) {
-            const row = document.createElement('div');
-            row.className = 'settings-grid-row';
+        const row = document.createElement('div');
+        row.className = 'settings-grid-row';
 
-            const lbl = document.createElement('label');
-            lbl.textContent = label;
+        const lbl = document.createElement('label');
+        lbl.textContent = '可视范围';
 
-            const slider = document.createElement('input');
-            slider.type = 'range';
-            slider.min = min; slider.max = max; slider.step = '1';
-            slider.value = gs[key];
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '3'; slider.max = '50'; slider.step = '1';
+        slider.value = currentRange;
 
-            const valSpan = document.createElement('span');
-            valSpan.className = 'settings-grid-value';
-            valSpan.textContent = gs[key];
+        const valSpan = document.createElement('span');
+        valSpan.className = 'settings-grid-value';
+        valSpan.textContent = '±' + currentRange;
 
-            slider.addEventListener('input', () => {
-                const v = parseInt(slider.value);
-                valSpan.textContent = v;
-                const size = key === 'size' ? v : parseInt(gridBody.querySelector('input[type="range"]').value);
-                const divisions = key === 'divisions' ? v : parseInt(gridBody.querySelectorAll('input[type="range"]')[1].value);
-                updateGridRenderer(size, divisions);
-            });
+        slider.addEventListener('input', () => {
+            const range = parseInt(slider.value);
+            valSpan.textContent = '±' + range;
+            updateGridRenderer(range);
+        });
+        // 松手后才持久化，避免拖动时频繁写 localStorage 导致卡顿
+        slider.addEventListener('change', () => {
+            _saveGridSettings(parseInt(slider.value));
+        });
 
-            row.appendChild(lbl);
-            row.appendChild(slider);
-            row.appendChild(valSpan);
-            return row;
-        }
+        row.appendChild(lbl);
+        row.appendChild(slider);
+        row.appendChild(valSpan);
+        gridBody.appendChild(row);
 
-        gridBody.appendChild(makeRow('范围', 'size', 2, 30));
-        gridBody.appendChild(makeRow('密度', 'divisions', 2, 40));
+        return slider;  // 暴露给重置按钮
     })();
 
     // ═══════════════════════════════════════════════════════
@@ -422,24 +422,21 @@ let currentSceneName = null;
     const colorsBody = document.getElementById('settings-colors-body');
 
     const colorDefs = [
-        { varName: '--accent',       label: '主题色',    cssProp: 'accent' },
-        { varName: '--bg-primary',   label: '主背景',    cssProp: 'bgPrimary',   isBg: true },
-        { varName: '--bg-secondary', label: '次背景',    cssProp: 'bgSecondary', isBg: true },
-        { varName: '--bg-nav',       label: '导航栏背景', cssProp: 'bgNav',       isBg: true },
-        { varName: '--green',        label: '绿色（验证通过）', cssProp: 'green' },
-        { varName: '--red',          label: '红色（验证失败）', cssProp: 'red' },
+        { varName: '--accent',       label: '主题色',    cssProp: 'accent',       defHex: '#4cc9f0' },
+        { varName: '--bg-primary',   label: '主背景',    cssProp: 'bgPrimary',    defHex: '#1a1a2e', isBg: true },
+        { varName: '--bg-secondary', label: '次背景',    cssProp: 'bgSecondary',  defHex: '#16213e', isBg: true },
+        { varName: '--bg-nav',       label: '导航栏背景', cssProp: 'bgNav',       defHex: '#10101c', isBg: true },
+        { varName: '--green',        label: '绿色（验证通过）', cssProp: 'green',  defHex: '#06d6a0' },
+        { varName: '--red',          label: '红色（验证失败）', cssProp: 'red',    defHex: '#ef476f' },
     ];
 
+    const DEFAULT_COLORS = {};
+    colorDefs.forEach(d => { DEFAULT_COLORS[d.cssProp] = d.defHex; });
+
+    // 仅从 localStorage 读取用户保存的颜色，不使用 getComputedStyle（避免模块执行时机问题导致读到空值）
     function _loadColorTheme() {
-        const defaults = {};
-        colorDefs.forEach(d => {
-            const styleVal = getComputedStyle(document.documentElement).getPropertyValue(d.varName).trim();
-            defaults[d.cssProp] = styleVal;
-        });
-        try {
-            const saved = JSON.parse(localStorage.getItem('la_color_theme') || '{}');
-            return { ...defaults, ...saved };
-        } catch { return defaults; }
+        try { return JSON.parse(localStorage.getItem('la_color_theme') || '{}'); }
+        catch { return {}; }
     }
 
     function _saveColorTheme(colors) {
@@ -459,20 +456,25 @@ let currentSceneName = null;
         }
     }
 
-    // 恢复保存的颜色 — CSS 变量立即生效（背景色延迟到 scene 初始化后）
+    function _getCurrentColor(cssProp) {
+        // 优先返回用户保存的值，否则用默认值（不依赖 getComputedStyle）
+        const saved = _loadColorTheme();
+        return saved[cssProp] || DEFAULT_COLORS[cssProp];
+    }
+
+    // 恢复用户保存的颜色 — 仅当 localStorage 中有保存值时才覆盖 CSS 变量
     const savedColors = _loadColorTheme();
     colorDefs.forEach(d => {
         const val = savedColors[d.cssProp];
         if (val) document.documentElement.style.setProperty(d.varName, val);
     });
 
-    // 注册延迟回调：Three.js 场景初始化后同步背景色
+    // 注册延迟回调：Three.js 场景初始化后同步背景色（仅当用户保存过背景色时覆盖）
     window._applySavedThemeBg = function() {
-        const savedColors = _loadColorTheme();
-        const bgColor = savedColors.bgPrimary;
-        if (bgColor) {
-            scene.background = new THREE.Color(bgColor);
-            scene.fog = new THREE.Fog(bgColor, 12, 30);
+        const savedBg = savedColors.bgPrimary;
+        if (savedBg) {
+            scene.background = new THREE.Color(savedBg);
+            scene.fog = new THREE.Fog(savedBg, 12, 30);
         }
     };
 
@@ -485,11 +487,11 @@ let currentSceneName = null;
 
         const colorInput = document.createElement('input');
         colorInput.type = 'color';
-        colorInput.value = savedColors[d.cssProp] || '';
+        colorInput.value = _getCurrentColor(d.cssProp);
 
         const hexSpan = document.createElement('span');
         hexSpan.className = 'color-hex';
-        hexSpan.textContent = savedColors[d.cssProp] || '';
+        hexSpan.textContent = _getCurrentColor(d.cssProp);
 
         colorInput.addEventListener('input', () => {
             hexSpan.textContent = colorInput.value;
@@ -515,45 +517,37 @@ let currentSceneName = null;
     resetBtn.className = 'settings-reset-btn';
     resetBtn.textContent = '恢复默认设置';
     resetBtn.addEventListener('click', () => {
-        // 重置网格
-        updateGridRenderer(10, 10);
-        gridBody.querySelectorAll('input[type="range"]')[0].value = 10;
-        gridBody.querySelectorAll('.settings-grid-value')[0].textContent = '10';
-        gridBody.querySelectorAll('input[type="range"]')[1].value = 10;
-        gridBody.querySelectorAll('.settings-grid-value')[1].textContent = '10';
+        // 重置网格（默认 ±5，10×10 格，每格=1单位）
+        updateGridRenderer(5);
+        _saveGridSettings(5);
+        if (gridRangeSlider) {
+            gridRangeSlider.value = 5;
+            gridBody.querySelector('.settings-grid-value').textContent = '±5';
+        }
 
-        // 重置颜色
-        const defaultColors = {};
+        // 重置颜色（清除 localStorage 记录 + 移除所有 inline style 覆盖，回到 CSS :root 默认值）
+        _saveColorTheme({});
         colorDefs.forEach(d => {
-            defaultColors[d.cssProp] = '';
+            document.documentElement.style.removeProperty(d.varName);
         });
-        _saveColorTheme(defaultColors);
-        // 用 CSS 默认值覆盖
-        document.documentElement.style.setProperty('--accent', '#4cc9f0');
-        document.documentElement.style.setProperty('--bg-primary', '#1a1a2e');
-        document.documentElement.style.setProperty('--bg-secondary', '#16213e');
-        document.documentElement.style.setProperty('--bg-nav', '#10101c');
-        document.documentElement.style.setProperty('--green', '#06d6a0');
-        document.documentElement.style.setProperty('--red', '#ef476f');
-        scene.background = new THREE.Color('#1a1a2e');
-        scene.fog = new THREE.Fog('#1a1a2e', 12, 30);
+        scene.background = new THREE.Color(DEFAULT_COLORS.bgPrimary);
+        scene.fog = new THREE.Fog(DEFAULT_COLORS.bgPrimary, 12, 30);
         // 更新颜色选择器
         colorsBody.querySelectorAll('input[type="color"]').forEach((inp, i) => {
-            const defHex = ['#4cc9f0','#1a1a2e','#16213e','#10101c','#06d6a0','#ef476f'][i];
-            inp.value = defHex;
-            colorsBody.querySelectorAll('.color-hex')[i].textContent = defHex;
+            inp.value = colorDefs[i].defHex;
+            colorsBody.querySelectorAll('.color-hex')[i].textContent = colorDefs[i].defHex;
         });
 
         // 重置参数范围
         _saveParamRanges({});
         refreshParamRangeUI();
 
-        // 重置面板可见性（全部显示）
-        _savePanelVisibility();
+        // 重置面板可见性（先设值再保存，避免保存中间状态）
         panelList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
             cb.checked = true;
             _applyPanelVisibility(cb.dataset.panelId, true);
         });
+        _savePanelVisibility();
     });
     resetRow.appendChild(resetBtn);
     menu.appendChild(resetRow);
@@ -750,27 +744,31 @@ scene.add(axisGroup);
 // XY 参考网格（Z轴向上，地面为XY平面）
 // renderOrder=-1 + depthWrite=false：网格先渲染但不写入深度缓冲，
 // 避免与用户绘制的图形产生 z-fighting 闪烁
-let gridSize = _loadGridSettings().size;
-let gridDivisions = _loadGridSettings().divisions;
-let gridHelper = new THREE.GridHelper(gridSize, gridDivisions, 0x333355, 0x222240);
+// 网格：range = 半轴单位数（±range 可见），size = range*2，divisions = size（每格=1单位）
+let gridRange = _loadGridSettings().range ?? 5;
+let gridHelper = new THREE.GridHelper(gridRange * 2, gridRange * 2, 0x333355, 0x222240);
 gridHelper.rotation.x = -Math.PI / 2;
 gridHelper.renderOrder = -1;
 gridHelper.material.depthWrite = false;
 scene.add(gridHelper);
 
 function _loadGridSettings() {
-    const defaults = { size: 10, divisions: 10 };
+    const defaults = { range: 5 };
     try {
         const saved = JSON.parse(localStorage.getItem('la_grid_settings') || '{}');
+        // 兼容旧格式 {size, divisions} → 转为 {range}
+        if (saved.range == null && saved.size != null) {
+            return { range: Math.round(saved.size / 2) };
+        }
         return { ...defaults, ...saved };
     } catch { return defaults; }
 }
 
-function _saveGridSettings(size, divisions) {
-    try { localStorage.setItem('la_grid_settings', JSON.stringify({ size, divisions })); } catch {}
+function _saveGridSettings(range) {
+    try { localStorage.setItem('la_grid_settings', JSON.stringify({ range })); } catch {}
 }
 
-function updateGridRenderer(size, divisions) {
+function updateGridRenderer(range) {
     if (gridHelper) {
         scene.remove(gridHelper);
         gridHelper.geometry.dispose();
@@ -780,14 +778,13 @@ function updateGridRenderer(size, divisions) {
             gridHelper.material.dispose();
         }
     }
-    gridSize = size;
-    gridDivisions = divisions;
-    gridHelper = new THREE.GridHelper(size, divisions, 0x333355, 0x222240);
+    gridRange = range;
+    const size = range * 2;
+    gridHelper = new THREE.GridHelper(size, size, 0x333355, 0x222240);
     gridHelper.rotation.x = -Math.PI / 2;
     gridHelper.renderOrder = -1;
     gridHelper.material.depthWrite = false;
     scene.add(gridHelper);
-    _saveGridSettings(size, divisions);
 }
 
 const originDot = new THREE.Mesh(

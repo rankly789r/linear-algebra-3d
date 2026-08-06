@@ -13,15 +13,17 @@
 
 | 方案 | 包体 | 用户门槛 | 分发成本 | 适用场景 |
 |------|------|----------|----------|----------|
-| **A. 便携压缩包** | 150-250MB | 解压双击 .bat | GitHub Releases 免费 | 推荐 |
-| **B. PyInstaller EXE** | 200-400MB | 双击运行 | GitHub Releases 免费 | 单文件需求 |
-| **C. Docker 镜像** | ~500MB | 需装 Docker | Docker Hub / ghcr.io | 技术用户 |
-| **D. 网页部署** | 0 客户端 | 浏览器访问 | 需服务器 | 最大覆盖面 |
-| **E. Electron 桌面应用** | ~300MB | 安装即用 | GitHub Releases | 原生体验 |
+| **A. 便携压缩包** | 150-250MB | 解压双击 .bat | GitHub Releases 免费 | **推荐** · 零依赖 |
+| **B. Electron 桌面应用** | 250-400MB | 安装即用（无浏览器地址栏） | GitHub Releases 免费 | **推荐** · 原生体验 |
+| **C. PyInstaller EXE** | 200-400MB | 双击运行 | GitHub Releases 免费 | 单文件需求 |
+| **D. Docker 镜像** | ~500MB | 需装 Docker | Docker Hub / ghcr.io | 技术用户 |
+| **E. 网页部署** | 0 客户端 | 浏览器访问 | 需服务器 | 最大覆盖面 |
 
-## 三、推荐方案：A + 备选 B
+## 三、推荐方案：A + B 双版本发布
 
-### 方案 A：便携压缩包（conda-pack）
+提供两种发布形态，覆盖不同场景：
+
+### 方案 A：便携压缩包（conda-pack）—— 零依赖，解压即用
 
 **原理**：`conda-pack` 把整个 conda 环境打包成一个可移植目录，解压后无需安装任何东西。
 
@@ -67,7 +69,61 @@ set "PYTHON_EXE=%~dp0python\python.exe"
 - 首次启动需等待 Python 环境初始化（几秒）
 - zip 解压比较慢
 
-### 方案 B：PyInstaller 单文件 EXE
+### 方案 B：Electron 桌面应用 —— 原生窗口，无浏览器地址栏
+
+**原理**：用 Electron 套一个原生窗口，内嵌本地 Web 服务。用户看到的是标准桌面软件——有标题栏、菜单、托盘图标，没有浏览器地址栏和标签页。
+
+**架构**：
+```
+Electron 主进程
+├── spawn Python 后端（localhost:8765，隐藏窗口）
+├── 创建 BrowserWindow → 加载 http://localhost:8765
+└── 应用关闭时自动 kill Python 进程
+```
+
+**打包流程**：
+```bash
+# 1. 安装 electron-builder
+npm install --save-dev electron electron-builder
+
+# 2. 创建 electron/main.js（主进程入口）
+#    - 启动 Python 后端
+#    - 创建无边框/标准窗口
+#    - 窗口关闭时清理子进程
+
+# 3. 打包
+npx electron-builder --win portable  # 便携版（单文件夹）
+npx electron-builder --win nsis      # 安装包（setup.exe）
+```
+
+**优势**：
+- 原生桌面体验：无地址栏、无浏览器 UI 干扰
+- 窗口管理：最小化到托盘、记住窗口位置/大小
+- 全屏独占：3D 场景可占满整个屏幕
+- 分发灵活：便携版（绿色免安装）+ 安装版（setup.exe）两种形态
+- 跨平台：同一套代码可出 Windows/Mac/Linux 三个版本
+
+**局限**：
+- 包体增加 ~150MB（Chromium 内核），总包体 250-400MB
+- Mac 平台需 Apple 开发者签名（否则系统提示"无法验证开发者"）
+- 需要额外维护 `electron/main.js` 生命周期管理代码
+
+**目录结构（Electron 版发布包）**：
+```
+线性代数交互学习系统_v1.x_electron/
+├── python/                  ← 便携 Python 环境
+├── server/                  ← 后端
+├── client/                  ← 前端
+├── app.py                   ← FastAPI 入口
+├── electron/
+│   └── main.js              ← Electron 主进程
+├── package.json             ← npm 依赖（electron）
+└── 线性代数交互学习系统.exe  ← 双击启动（Electron 入口）
+```
+
+**与方案 A 的关系**：方案 A 的便携 Python 环境可以直接复用。Electron 版本 = 方案 A 的 Python 层 + Electron 壳。两个版本可以共用一个打包脚本，只是最后一步不同。
+
+### 方案 C：PyInstaller 单文件 EXE（备用）
 
 **原理**：PyInstaller 把 Python 解释器 + 所有依赖 + 静态文件打成一个 exe。
 
@@ -85,6 +141,14 @@ pyinstaller --onefile --add-data "client:client" app.py
 - 杀毒软件误报率高（PyInstaller 签名问题）
 - 包体更大：包含完整 Python 运行时
 - 前端文件路径需要适配（`sys._MEIPASS`）
+
+### 方案 D：Docker 镜像
+
+> 略，适用于技术用户自部署。
+
+### 方案 E：网页部署
+
+> 略，需购买服务器，暂不推荐。
 
 ## 四、开源策略（GitHub）
 
@@ -139,14 +203,14 @@ cp -r node_modules/katex/dist client/js/vendor/katex/
 | 2 | 编写 README.md（中英双语 + 截图位） | ⭐⭐⭐ | 待办 |
 | 3 | 录屏核心场景 GIF | ⭐⭐⭐ | 待办 |
 | 4 | 安装 conda-pack，测试打包 | ⭐⭐ | 待办 |
-| 5 | 编写打包脚本 `scripts/pack.sh` | ⭐⭐ | 待办 |
+| 5 | 编写打包脚本 `scripts/pack.py` | ⭐⭐ | 待办 |
 | 6 | 适配 start.bat 便携路径 | ⭐⭐ | 待办 |
-| 7 | 创建 GitHub 仓库，配置 Releases | ⭐⭐ | 待办 |
-| 8 | 准备 PyInstaller 备用方案 | ⭐ | 待办 |
-| 9 | Mac/Linux 打包 | ⭐ | 远期 |
-| 10 | 场景全部完工 | ⭐⭐⭐ | 进行中 |
+| 7 | Electron 壳开发（main.js + electron-builder） | ⭐⭐ | 待办 |
+| 8 | 创建 GitHub 仓库，配置 Releases | ⭐⭐ | 待办 |
+| 9 | 准备 PyInstaller 备用方案 | ⭐ | 待办 |
+| 10 | Mac/Linux 打包 | ⭐ | 远期 |
+| 11 | 场景全部完工 | ⭐⭐⭐ | 进行中 |
 
 ## 七、不推荐的做法
 
-- **网页部署（方案 D）**：需要服务器运维，不适合个人项目；KaTeX CDN + Three.js 本地化后静态资源虽可托管在 GitHub Pages，但后端 FastAPI 无法在静态托管上运行
-- **完全内嵌浏览器**：包体失控（CEF/WebView2 ~150MB 仅浏览器部分）
+- **网页部署（方案 E）**：需要服务器运维，后端 FastAPI 无法在静态托管（如 GitHub Pages）上运行；若未来场景全部完成且愿意租服务器，可再评估

@@ -85,7 +85,7 @@ document.querySelector('.panel-body').innerHTML = '...';
 | `la_lecture_ai_collapsed` | `'1'`/`'0'` AI 答疑折叠 | `scene-base.js` `_updateLecturePanel()` |
 | `la_lecture_subpanel_order` | `['basic','ai']` 或 `['ai','basic']` | `scene-base.js` `_updateLecturePanel()` |
 | `la_*_anim_auto` | `'1'`/`'0'` 各场景自动动画开关（10个场景） | `scene-base.js` `_isAnimAutoEnabled()` |
-| `la_grid_settings` | `{size, divisions}` 3D 网格大小和密度 | `main.js` `initSettingsMenu()` |
+| `la_grid_settings` | `{range}` 3D 网格可视范围（半轴单位数，默认5=±5，每格=1单位） | `main.js` `initSettingsMenu()` |
 | `la_color_theme` | `{accent, bgPrimary, bgSecondary, bgNav, green, red}` 颜色覆盖 | `main.js` `initSettingsMenu()` |
 | `la_param_ranges` | `{sceneId: {paramKey: {min, max}}}` 参数自定义范围 | `main.js` 设置菜单 + `scene-base.js` `_buildParams()` |
 | `la_settings_collapsed` | `{group: bool}` 设置菜单各分组折叠状态 | `main.js` `initSettingsMenu()` |
