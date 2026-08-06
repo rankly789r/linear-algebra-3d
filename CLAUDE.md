@@ -51,9 +51,10 @@ xianxingdaishu/
 │   └── tasks.json           ← Ctrl+Shift+B 启动服务器
 ├── setup.bat / start.bat / app.py / requirements.txt
 ├── server/                  ← Python 后端（唯一事实来源）
-│   ├── main.py              ← FastAPI + 场景注册表
+│   ├── main.py              ← FastAPI + 场景注册表 + AI 答疑端点
 │   ├── math_engine.py       ← NumPy/SciPy 封装
-│   └── scenes/              ← 18 个场景（base.py + ch0~ch3 + matrix_calculator）
+│   ├── ai_chat.py           ← DeepSeek API 调用 + system prompt 构建
+│   └── scenes/              ← 23 个场景（base.py + ch0~ch3 + matrix_calculator）
 ├── client/                  ← 浏览器前端（只负责画）
 │   ├── index.html           ← 三栏布局 + 4 个 dock zone
 │   ├── css/style.css        ← 深色主题 + 面板 + 暗色滚动条
@@ -87,7 +88,12 @@ Response: {
 }
 
 GET /api/scenes → { success, data: [{id, title, chapter, description, params, presets}] }
-```
+
+POST /api/chat/{scene_name}
+Body: { params, message, history: [{role, content}], api_key: "sk-..." }
+Response: { success, data: { reply: "..." } }
+说明：后端先执行场景计算获取当前数据，再作为上下文调用 DeepSeek API。
+      api_key 由前端从 localStorage 读取并传入，不存储在后端。
 
 ## 五、面板速查
 
@@ -98,7 +104,7 @@ GET /api/scenes → { success, data: [{id, title, chapter, description, params, 
 | `params` | 🎚 参数调节 | right | 否 |
 | `camera` | 📷 视角控制 | right | 否 |
 | `solution` | 📊 分析结果 | right | 否 |
-| `lecture` | 📖 讲解 | right | 否 |
+| `lecture` | 📖 讲解（含 AI 答疑） | right | 否 |
 | `verify` | 🔍 数学验证 | right | **是** |
 | `matrix` | 📋 矩阵数据 | top | 否 |
 
@@ -166,6 +172,18 @@ GET /api/scenes → { success, data: [{id, title, chapter, description, params, 
 - **侧栏折叠**：左栏/右栏边缘有 `◀`/`▶` 按钮，可折叠至 32px，状态持久化到 `localStorage`
 - **GPU 花屏**：VSCode（Electron/Chromium）与某些 NVIDIA 驱动冲突。用外部浏览器，和本项目无关
 
+### AI 答疑功能
+- 讲解面板底部有「🤖 AI 答疑」区域，点击 ⚙️ 设置 DeepSeek API Key（用户自备，存 localStorage）
+- Key 从 [platform.deepseek.com](https://platform.deepseek.com/api_keys) 获取，一次回答不到一分钱
+- 基础讲解可折叠（点击「📖 基础讲解 ▲」），为 AI 聊天腾出空间
+- 后端端点 `POST /api/chat/{scene_name}`，自动将当前场景矩阵数据注入 system prompt
+- 详见 [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md) 的「AI 答疑模块」章节
+
+### 面板显示管理
+- 3D 视图左上角「👁 面板」按钮 → 勾选/取消勾选来显示/隐藏各面板
+- 状态持久化到 `localStorage`（key: `la_panel_visibility`）
+- 隐藏的面板可通过菜单重新显示
+
 ### 渲染优化
 - 页面不可见时暂停 `requestAnimationFrame`，释放 GPU
 - 加载遮罩 200ms 延迟门（避免快速请求时的闪烁）
@@ -228,6 +246,7 @@ GET /api/scenes → { success, data: [{id, title, chapter, description, params, 
 ### 基础设施
 - [ ] 向量拖拽交互（直接拖拽箭头端点修改向量）
 - [ ] 将动画工厂函数提取到 `draw-utils.js`（当前各场景各有一份拷贝）
+- [ ] 场景标题栏菜单按钮：右上角 `#scene-info-header` 旁加一个图标按钮，点击弹出下拉菜单（主题切换、捐赠码等）
 
 ## 十、用户偏好
 

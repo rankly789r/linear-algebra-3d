@@ -100,6 +100,101 @@ window.panelManager = panelManager;
     `;
 })();
 
+// ─── 面板显示管理菜单 ────────────────────────────────────
+
+(function initPanelVisibilityMenu() {
+    const toggleBtn = document.getElementById('panel-vis-toggle');
+    const menu = document.getElementById('panel-vis-menu');
+    const list = document.getElementById('panel-vis-list');
+    if (!toggleBtn || !menu || !list) return;
+
+    // 可管理的面板列表（id → 显示名）
+    const panelDefs = [
+        { id: 'scenenav', label: '📐 场景目录' },
+        { id: 'presets',  label: '📌 预设情形' },
+        { id: 'params',   label: '🎚 参数调节' },
+        { id: 'camera',   label: '📷 视角控制' },
+        { id: 'solution', label: '📊 分析结果' },
+        { id: 'lecture',  label: '📖 讲解' },
+        { id: 'verify',   label: '🔍 数学验证' },
+        { id: 'matrix',   label: '📋 矩阵数据' },
+    ];
+
+    // 恢复保存的状态
+    const saved = _loadPanelVisibility();
+
+    // 构建菜单项
+    panelDefs.forEach(def => {
+        const row = document.createElement('div');
+        row.className = 'panel-vis-item';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = saved[def.id] !== false; // 默认全部显示
+        cb.dataset.panelId = def.id;
+
+        const label = document.createElement('label');
+        label.textContent = def.label;
+
+        cb.addEventListener('change', () => {
+            _applyPanelVisibility(def.id, cb.checked);
+            _savePanelVisibility();
+        });
+
+        row.appendChild(cb);
+        row.appendChild(label);
+        row.addEventListener('click', (e) => {
+            if (e.target !== cb) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change'));
+            }
+        });
+        list.appendChild(row);
+
+        // 应用初始状态
+        _applyPanelVisibility(def.id, cb.checked);
+    });
+
+    // 点击按钮切换菜单显示
+    toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // 点击空白处关闭菜单
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target) && e.target !== toggleBtn) {
+            menu.style.display = 'none';
+        }
+    });
+
+    function _loadPanelVisibility() {
+        try {
+            return JSON.parse(localStorage.getItem('la_panel_visibility') || '{}');
+        } catch {
+            return {};
+        }
+    }
+
+    function _savePanelVisibility() {
+        const state = {};
+        list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            state[cb.dataset.panelId] = cb.checked;
+        });
+        localStorage.setItem('la_panel_visibility', JSON.stringify(state));
+    }
+
+    function _applyPanelVisibility(panelId, visible) {
+        const panel = panelManager.getPanel(panelId);
+        if (!panel) return;
+        if (visible) {
+            panel.show();
+        } else {
+            panel.hide();
+        }
+    }
+})();
+
 // ─── 场景渲染器注册 ──────────────────────────────────────
 
 import { TwoVectorsRenderer } from './renderers/ch3_r1_two_vectors.js';

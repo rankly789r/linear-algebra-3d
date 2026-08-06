@@ -45,6 +45,41 @@ export async function computeScene(sceneName, params = {}) {
  * 获取所有已注册场景的元信息
  * @returns {Promise<Array>}
  */
+/**
+ * 调用 AI 答疑 API
+ * @param {string} sceneName - 场景标识
+ * @param {Object} params - 当前场景参数
+ * @param {string} message - 用户问题
+ * @param {Array} history - 聊天历史 [{role: "user"|"assistant", content: "..."}]
+ * @returns {Promise<Object>} {success, data: {reply: "..."}}
+ */
+export async function askAI(sceneName, params, message, history = [], apiKey = '') {
+    try {
+        const response = await fetch(`${API_BASE}/api/chat/${sceneName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ params, message, history, api_key: apiKey })
+        });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            return {
+                success: false,
+                data: null,
+                error: errData.error || `HTTP ${response.status}: AI 服务错误`
+            };
+        }
+
+        return await response.json();
+    } catch (err) {
+        return {
+            success: false,
+            data: null,
+            error: `AI 请求失败: ${err.message}`
+        };
+    }
+}
+
 export async function listScenes() {
     try {
         const response = await fetch(`${API_BASE}/api/scenes`);

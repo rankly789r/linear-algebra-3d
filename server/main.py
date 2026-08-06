@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from server.math_engine import MathEngine
 from server.scenes.base import SceneParams
+from server.ai_chat import ask_deepseek, build_system_prompt
 
 # ─── 场景注册表 ───────────────────────────────────────────
 # 格式: "route_name" -> SceneClass
@@ -81,8 +82,13 @@ CLIENT_DIR = Path(__file__).parent.parent / "client"
 
 @app.get("/")
 async def root():
-    """返回主页面"""
-    return FileResponse(CLIENT_DIR / "index.html")
+    """返回主页面（开发阶段禁用缓存，确保每次刷新获取最新）"""
+    headers = {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+    }
+    return FileResponse(CLIENT_DIR / "index.html", headers=headers)
 
 
 # ─── 动态路由：根据注册表自动生成 API 端点 ─────────────────
@@ -148,12 +154,107 @@ async def list_scenes():
     return JSONResponse({"success": True, "data": scenes, "error": None})
 
 
+# ─── AI 答疑端点 ──────────────────────────────────────────
+
+@app.post("/api/chat/{scene_name}")
+async def ai_chat(scene_name: str, request: Request):
+    """
+    AI 答疑端点。
+    接收用户问题和当前场景参数，先执行场景计算获取数据，
+    再将数据作为上下文发送给 DeepSeek AI 进行答疑。
+
+    Body: {params: {...}, message: "...", history: [{role, content}, ...], api_key: "sk-..."}
+    """
+    # 1. 查找场景
+    scene_class = SCENE_REGISTRY.get(scene_name)
+    if scene_class is None:
+        return JSONResponse({
+            "success": False,
+            "error": f"未知场景: {scene_name}",
+        }, status_code=404)
+
+    # 2. 解析请求体
+    try:
+        body = await request.json()
+        params_dict = body.get("params", {})
+        message = body.get("message", "").strip()
+        history = body.get("history", [])
+        api_key = body.get("api_key", "").strip() or None
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": f"请求解析失败: {str(e)}",
+        }, status_code=400)
+
+    if not message:
+        return JSONResponse({
+            "success": False,
+            "error": "问题不能为空",
+        }, status_code=400)
+
+    if not api_key:
+        return JSONResponse({
+            "success": False,
+            "error": "请先在设置中填入 DeepSeek API Key（可从 platform.deepseek.com 获取）",
+        }, status_code=401)
+
+    # 3. 执行场景计算获取当前数据
+    try:
+        params = SceneParams(**params_dict) if params_dict else SceneParams()
+        scene = scene_class()
+        result = scene.compute(params)
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": f"场景计算失败: {str(e)}",
+        }, status_code=500)
+
+    # 4. 提取场景上下文并构建 system prompt
+    scene_data = result.get("scene_data", {})
+    scene_data["matrices"] = scene_data.get("matrices", [])
+    scene_data["solution_info"] = result.get("solution_info", {})
+    scene_data["verification"] = result.get("verification", {})
+
+    # 附加场景元信息
+    meta = scene_class.get_meta()
+    scene_data["_scene_title"] = meta.get("title", scene_name)
+    scene_data["_scene_description"] = meta.get("description", "")
+
+    system_prompt = build_system_prompt(scene_data)
+
+    # 5. 构建消息历史 + 当前问题
+    messages = list(history) if history else []
+    messages.append({"role": "user", "content": message})
+
+    # 6. 调用 DeepSeek API
+    chat_result = await ask_deepseek(system_prompt, messages, api_key=api_key)
+
+    if chat_result.get("success"):
+        return JSONResponse({
+            "success": True,
+            "data": {"reply": chat_result["reply"]},
+        })
+    else:
+        return JSONResponse({
+            "success": False,
+            "error": chat_result.get("error", "AI 调用失败"),
+        }, status_code=500)
+
+
 # ─── 静态文件 ──────────────────────────────────────────────
 
 @app.get("/client/{file_path:path}")
 async def serve_static(file_path: str):
-    """提供前端静态文件"""
-    full_path = CLIENT_DIR / file_path
+    """提供前端静态文件（JS/CSS 禁用缓存，开发阶段每次刷新获取最新）"""
+    full_path = (CLIENT_DIR / file_path).resolve()
+    # 防目录遍历：确保解析后的路径仍在 CLIENT_DIR 下
+    if not str(full_path).startswith(str(CLIENT_DIR.resolve())):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
     if full_path.exists() and full_path.is_file():
-        return FileResponse(full_path)
+        headers = {}
+        if file_path.endswith(('.js', '.css', '.html')):
+            headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            headers['Pragma'] = 'no-cache'
+            headers['Expires'] = '0'
+        return FileResponse(full_path, headers=headers if headers else None)
     return JSONResponse({"error": "File not found"}, status_code=404)

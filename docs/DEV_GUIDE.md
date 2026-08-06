@@ -251,7 +251,16 @@ updateMatrixDisplay(panel, matrices);
 - 面板位置、排序、折叠状态 → `localStorage` key: `la_panel_layout`
 - 自定义尺寸 → `localStorage` key: `la_panel_sizes`
 - 当前场景 → `localStorage` key: `la_current_scene`
+- 面板显示/隐藏 → `localStorage` key: `la_panel_visibility`
+- 当前正在编辑的场景 → `localStorage` key: `la_current_scene`
+- AI API Key → `localStorage` key: `la_deepseek_api_key`
 - 重置：浏览器控制台执行 `localStorage.clear(); location.reload();`
+
+### 面板显示管理
+
+3D 视图左上角有「👁 面板」按钮，点击弹出菜单，可勾选/取消各面板的显示状态。
+状态自动保存到 `la_panel_visibility`，刷新后保持。
+实现位于 `main.js` 的 `initPanelVisibilityMenu()` IIFE 中。
 
 ## 五、前端文件职责速查
 
@@ -269,8 +278,9 @@ updateMatrixDisplay(panel, matrices);
 | 文件 | 职责 |
 |------|------|
 | `app.py` | uvicorn 入口，启动服务器 |
-| `server/main.py` | FastAPI app，路由注册，静态文件服务，场景注册表 |
+| `server/main.py` | FastAPI app，路由注册，静态文件服务，场景注册表，AI 答疑端点 |
 | `server/math_engine.py` | NumPy/SciPy 封装，所有数学计算必须走这里 |
+| `server/ai_chat.py` | DeepSeek Chat API 调用封装，system prompt 构建 |
 | `server/scenes/base.py` | BaseScene 基类，SceneParams 参数类 |
 | `server/scenes/chX_rY_*.py` | 各场景实现 |
 
@@ -292,11 +302,17 @@ updateMatrixDisplay(panel, matrices);
 | `infinite` | 绿色 | 无穷多解 |
 | `degenerate` | 橙色 | 退化情形 |
 
-## 九、讲解面板（lecture）
+## 九、讲解面板（lecture）—— 含 AI 答疑
 
-后端返回 `lecture.sections` 即可自动渲染到「📖 讲解」面板，支持 KaTeX 数学公式。
+后端返回 `lecture.sections` 即可自动渲染到「📖 讲解」面板。
 
-### 后端格式
+面板布局（自上而下）：
+1. **📖 基础讲解**（可折叠）—— 点击 `▲` / `▼` 收起/展开，为 AI 聊天腾空间
+2. **🤖 AI 答疑** —— 用户提问，后端调用 DeepSeek API，结合当前场景数据回答
+
+折叠状态由 `this._lectureCollapsed` 控制，切换场景时重置为展开。
+
+### 后端格式（基础讲解部分）
 
 ```python
 "lecture": {
@@ -372,3 +388,59 @@ async _computeAndRender(params, showLoading) {
     this._addAnimationButton();  // 在 solution 面板顶部插入按钮
 }
 ```
+
+## 十一、AI 答疑模块
+
+### 架构
+
+```
+浏览器 localStorage           Python 后端                  DeepSeek API
+  la_deepseek_api_key  ──→  POST /api/chat/{scene}  ──→  chat/completions
+                                   │
+                            1. 执行 scene.compute(params)
+                            2. 将 scene_data 注入 system prompt
+                            3. 调用 ask_deepseek()
+                            4. 返回 {reply: "..."}
+```
+
+### 关键文件
+
+| 文件 | 职责 |
+|------|------|
+| `server/ai_chat.py` | `build_system_prompt()` 构建上下文，`ask_deepseek()` 调用 API |
+| `server/main.py` | `POST /api/chat/{scene_name}` 端点，组装请求 |
+| `client/js/api.js` | `askAI(sceneName, params, message, history, apiKey)` |
+| `client/js/scene-base.js` | `_appendChatUI()` 聊天 UI，`_sendChatMessage()` 发送逻辑，`_renderMarkdown()` 格式渲染 |
+
+### API 端点
+
+```
+POST /api/chat/{scene_name}
+Body: {
+    params: {...},         // 当前场景参数
+    message: "...",        // 用户问题
+    history: [{role, content}, ...],  // 聊天历史
+    api_key: "sk-..."      // 用户自己的 DeepSeek Key
+}
+Response: { success: true, data: { reply: "..." } }
+
+401: 未提供 api_key → 提示设置 Key
+500: AI 调用失败 → 错误信息
+```
+
+### System Prompt
+
+在 `server/ai_chat.py` 的 `build_system_prompt()` 中构建。包含：
+- 当前场景的矩阵数据、解信息、验证结果
+- LaTeX 格式约束（`$...$` / `$$...$$`，禁止 `\(...\)` / `\[...\]`）
+- 格式示例（few-shot）
+
+前端 `_renderMarkdown()` 额外做了一层格式兼容：将 `\(...\)` → `$...$`、`\[...\]` → `$$...$$`，防止 AI 不遵守 prompt。
+
+### API Key 管理
+
+- Key 由用户自行从 [platform.deepseek.com](https://platform.deepseek.com/api_keys) 获取
+- 存储在浏览器 `localStorage`，key: `la_deepseek_api_key`
+- 每次请求通过 `api_key` 字段传给后端，后端不存储
+- 部署者可通过环境变量 `DEEPSEEK_API_KEY` 设置默认 Key（可选）
+

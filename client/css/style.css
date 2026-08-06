@@ -180,6 +180,78 @@ body {
     z-index: 5;
 }
 
+/* ── 面板显示管理 ── */
+#panel-vis-toggle {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 100;
+    padding: 5px 12px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    background: rgba(18, 18, 31, 0.85);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    transition: color 0.15s, border-color 0.15s;
+}
+
+#panel-vis-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.panel-vis-menu {
+    position: absolute;
+    top: 44px;
+    left: 12px;
+    z-index: 101;
+    min-width: 190px;
+    background: rgba(18, 18, 31, 0.95);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 0;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.panel-vis-title {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    padding: 2px 12px 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+}
+
+.panel-vis-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    font-size: 0.74rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.panel-vis-item:hover {
+    background: rgba(76, 201, 240, 0.08);
+}
+
+.panel-vis-item input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.panel-vis-item label {
+    cursor: pointer;
+    flex: 1;
+}
+
 /* ===== 右栏 ===== */
 #right-column {
     width: 340px;
@@ -784,6 +856,34 @@ body {
     color: var(--text-secondary);
 }
 
+/* ── 基础讲解折叠栏 ── */
+.lecture-collapse-bar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.lecture-collapse-btn {
+    font-size: 0.74rem;
+    font-weight: 600;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 10px;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.lecture-collapse-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.lecture-body {
+    margin-bottom: 4px;
+}
+
 .lecture-content strong {
     color: var(--text-primary);
 }
@@ -794,4 +894,222 @@ body {
 
 .lecture-content .katex {
     font-size: 1.05em;
+}
+
+/* ─── AI 聊天面板 ──────────────────────────────────────── */
+
+.ai-chat-container {
+    border-top: 1px solid var(--border);
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+/* ── 聊天标题行 ── */
+.ai-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.ai-chat-title {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.ai-chat-settings-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 0.82rem;
+    line-height: 1;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.ai-chat-settings-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.ai-chat-settings-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(76, 201, 240, 0.1);
+}
+
+/* ── API Key 设置面板 ── */
+.ai-chat-settings {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+}
+
+.ai-chat-settings-hint {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    line-height: 1.5;
+}
+
+.ai-chat-settings-hint a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.ai-chat-settings-hint a:hover {
+    text-decoration: underline;
+}
+
+.ai-chat-settings-row {
+    display: flex;
+    gap: 6px;
+}
+
+.ai-chat-key-input {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 0.72rem;
+    font-family: monospace;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    outline: none;
+}
+
+.ai-chat-key-input:focus {
+    border-color: var(--accent);
+}
+
+.ai-chat-key-save-btn {
+    padding: 5px 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: var(--green);
+    color: var(--bg-primary);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+
+.ai-chat-key-save-btn:hover {
+    opacity: 0.85;
+}
+
+.ai-chat-messages {
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.ai-chat-messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+.ai-chat-messages::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}
+
+.ai-chat-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 4px 0;
+    line-height: 1.5;
+}
+
+.ai-chat-message {
+    margin-bottom: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 0.74rem;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.ai-chat-message.user {
+    background: var(--bg-tertiary);
+    margin-left: 24px;
+    color: var(--text-primary);
+}
+
+.ai-chat-message.assistant {
+    background: var(--bg-secondary);
+    margin-right: 8px;
+    color: var(--text-primary);
+    border-left: 2px solid var(--accent);
+}
+
+.ai-chat-message.assistant .katex-display {
+    margin: 6px 0;
+}
+
+.ai-chat-message.assistant .katex {
+    font-size: 1.02em;
+}
+
+.ai-chat-message.assistant strong {
+    color: var(--accent);
+}
+
+.ai-chat-input-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.ai-chat-input {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 0.76rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.ai-chat-input:focus {
+    border-color: var(--accent);
+}
+
+.ai-chat-input:disabled {
+    opacity: 0.5;
+}
+
+.ai-chat-send-btn {
+    padding: 6px 14px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    background: var(--accent);
+    color: var(--bg-primary);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.ai-chat-send-btn:hover {
+    background: var(--accent-hover);
+}
+
+.ai-chat-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

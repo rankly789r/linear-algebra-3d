@@ -13,7 +13,7 @@
  */
 
 import * as THREE from 'three';
-import { computeScene } from './api.js';
+import { computeScene, askAI } from './api.js';
 import { updateMatrixDisplay } from './matrix-display.js';
 
 /** 获取 panelManager 单例的便捷方法 */
@@ -40,6 +40,8 @@ export class SceneRenderer {
         this._isInitialLoad = true;
         this._cachedLectureKey = null;
         this._cachedLectureHTML = null;
+        this._chatHistory = [];          // AI 聊天历史
+        this._lectureCollapsed = false;  // 基础讲解折叠状态
 
         // 初始化默认参数
         if (meta.params) {
@@ -79,6 +81,9 @@ export class SceneRenderer {
             this._disposeRecursive(child);
             this.sceneObjects.remove(child);
         }
+        // 清空聊天历史
+        this._chatHistory = [];
+        this._lectureCollapsed = false;
         // 清空动态面板内容
         const pm = _pm();
         if (pm) {
@@ -399,17 +404,19 @@ export class SceneRenderer {
         }
     }
 
-    // ─── 讲解面板（支持 KaTeX 数学公式） ────────────────
+    // ─── 讲解面板（支持 KaTeX 数学公式 + 可折叠）───────
 
     _updateLecturePanel(data) {
         const panel = this._panel('lecture');
         if (!panel) return;
 
+        // 无基础讲解内容时，清空讲解区但保留 AI 聊天
         if (!data.lecture || !data.lecture.sections || data.lecture.sections.length === 0) {
+            panel.show();
             panel.body.innerHTML = '';
-            panel.hide();
             this._cachedLectureHTML = null;
             this._cachedLectureKey = null;
+            this._appendChatUI(panel);
             return;
         }
         panel.show();
@@ -418,51 +425,375 @@ export class SceneRenderer {
         const lectureKey = JSON.stringify(data.lecture);
         if (this._cachedLectureKey === lectureKey && this._cachedLectureHTML) {
             panel.body.innerHTML = this._cachedLectureHTML;
+            this._bindLectureCollapse(panel);
+            this._appendChatUI(panel);
             return;
         }
         this._cachedLectureKey = lectureKey;
 
-        let html = '';
+        // 渲染 lecture sections
+        let sectionsHTML = '';
         data.lecture.sections.forEach(sec => {
-            html += `<div class="lecture-section">
+            sectionsHTML += `<div class="lecture-section">
                 <div class="lecture-title">${sec.title}</div>
                 <div class="lecture-content">`;
-            // 解析 $...$ 和 $$...$$ 数学公式
             const parts = sec.content.split(/(\$\$[\s\S]*?\$\$|\$[^\$]*?\$)/g);
             parts.forEach(part => {
                 if (part.startsWith('$$')) {
                     const math = part.slice(2, -2).trim();
                     try {
                         if (typeof katex !== 'undefined') {
-                            html += katex.renderToString(math, { displayMode: true, throwOnError: false });
+                            sectionsHTML += katex.renderToString(math, { displayMode: true, throwOnError: false });
                         } else {
-                            html += `<pre style="color:var(--text-secondary);">${math}</pre>`;
+                            sectionsHTML += `<pre style="color:var(--text-secondary);">${math}</pre>`;
                         }
                     } catch (e) {
-                        html += `<pre style="color:var(--red);">${math}</pre>`;
+                        sectionsHTML += `<pre style="color:var(--red);">${math}</pre>`;
                     }
                 } else if (part.startsWith('$')) {
                     const math = part.slice(1, -1).trim();
                     try {
                         if (typeof katex !== 'undefined') {
-                            html += katex.renderToString(math, { displayMode: false, throwOnError: false });
+                            sectionsHTML += katex.renderToString(math, { displayMode: false, throwOnError: false });
                         } else {
-                            html += `<code>${math}</code>`;
+                            sectionsHTML += `<code>${math}</code>`;
                         }
                     } catch (e) {
-                        html += `<code style="color:var(--red);">${math}</code>`;
+                        sectionsHTML += `<code style="color:var(--red);">${math}</code>`;
                     }
                 } else {
-                    // 普通文本：支持 **粗体** 和换行
-                    html += part
+                    sectionsHTML += part
                         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                         .replace(/\n/g, '<br>');
                 }
             });
-            html += `</div></div>`;
+            sectionsHTML += `</div></div>`;
         });
-        this._cachedLectureHTML = html;
-        panel.body.innerHTML = html;
+
+        // 构建完整 HTML：折叠栏 + 讲解内容
+        const arrow = this._lectureCollapsed ? '▼' : '▲';
+        const bodyDisplay = this._lectureCollapsed ? 'style="display:none"' : '';
+        const fullHTML =
+            `<div class="lecture-collapse-bar">
+                <button class="lecture-collapse-btn">📖 基础讲解 ${arrow}</button>
+            </div>
+            <div class="lecture-body" ${bodyDisplay}>${sectionsHTML}</div>`;
+
+        this._cachedLectureHTML = fullHTML;
+        panel.body.innerHTML = fullHTML;
+
+        // 绑定折叠事件
+        this._bindLectureCollapse(panel);
+
+        // 追加 AI 聊天 UI
+        this._appendChatUI(panel);
+    }
+
+    /** 绑定基础讲解的折叠/展开按钮 */
+    _bindLectureCollapse(panel) {
+        const btn = panel.body.querySelector('.lecture-collapse-btn');
+        if (!btn) return;
+        // 用标记避免重复绑定
+        if (btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+
+        btn.addEventListener('click', () => {
+            this._lectureCollapsed = !this._lectureCollapsed;
+            const body = panel.body.querySelector('.lecture-body');
+            if (body) {
+                body.style.display = this._lectureCollapsed ? 'none' : '';
+            }
+            btn.textContent = `📖 基础讲解 ${this._lectureCollapsed ? '▼' : '▲'}`;
+        });
+    }
+
+    // ─── AI 聊天 UI ────────────────────────────────────────
+
+    /**
+     * 在讲解面板底部追加聊天界面。
+     * 每次 _updateLecturePanel 后调用，确保 innerHTML 不会意外清除聊天 UI。
+     */
+    _appendChatUI(panel) {
+        // 如果聊天容器已存在且仍在 DOM 中，只刷新消息渲染
+        let container = panel.body.querySelector('.ai-chat-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'ai-chat-container';
+
+            // ── 标题行：AI 答疑 + 设置按钮 ──
+            const headerRow = document.createElement('div');
+            headerRow.className = 'ai-chat-header';
+
+            const title = document.createElement('span');
+            title.className = 'ai-chat-title';
+            title.textContent = '🤖 AI 答疑';
+            headerRow.appendChild(title);
+
+            const settingsBtn = document.createElement('button');
+            settingsBtn.className = 'ai-chat-settings-btn';
+            settingsBtn.title = '设置 API Key';
+            settingsBtn.textContent = '⚙️';
+            settingsBtn.addEventListener('click', () => this._toggleApiKeySettings(container));
+            headerRow.appendChild(settingsBtn);
+
+            container.appendChild(headerRow);
+
+            // ── API Key 设置面板（默认隐藏）──
+            const settingsPanel = document.createElement('div');
+            settingsPanel.className = 'ai-chat-settings';
+            settingsPanel.style.display = 'none';
+
+            const settingsHint = document.createElement('div');
+            settingsHint.className = 'ai-chat-settings-hint';
+            settingsHint.innerHTML = '在 <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a> 获取 Key，充值几块钱够用很久。';
+            settingsPanel.appendChild(settingsHint);
+
+            const settingsRow = document.createElement('div');
+            settingsRow.className = 'ai-chat-settings-row';
+
+            const keyInput = document.createElement('input');
+            keyInput.type = 'password';
+            keyInput.className = 'ai-chat-key-input';
+            keyInput.placeholder = 'sk-...';
+            // 从 localStorage 恢复已保存的 Key
+            const savedKey = localStorage.getItem('la_deepseek_api_key');
+            if (savedKey) keyInput.value = savedKey;
+
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'ai-chat-key-save-btn';
+            saveBtn.textContent = '保存';
+            saveBtn.addEventListener('click', () => {
+                const newKey = keyInput.value.trim();
+                if (newKey) {
+                    localStorage.setItem('la_deepseek_api_key', newKey);
+                    keyInput.value = newKey;
+                    settingsPanel.style.display = 'none';
+                    settingsBtn.classList.remove('active');
+                    this._renderChatMessages(container.querySelector('.ai-chat-messages'));
+                }
+            });
+
+            settingsRow.appendChild(keyInput);
+            settingsRow.appendChild(saveBtn);
+            settingsPanel.appendChild(settingsRow);
+            container.appendChild(settingsPanel);
+
+            // ── 消息列表 ──
+            const messagesDiv = document.createElement('div');
+            messagesDiv.className = 'ai-chat-messages';
+            container.appendChild(messagesDiv);
+
+            // ── 输入行 ──
+            const inputRow = document.createElement('div');
+            inputRow.className = 'ai-chat-input-row';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = '向 AI 提问当前场景...';
+            input.className = 'ai-chat-input';
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this._sendChatMessage();
+            });
+
+            const btn = document.createElement('button');
+            btn.className = 'ai-chat-send-btn';
+            btn.textContent = '发送';
+            btn.addEventListener('click', () => this._sendChatMessage());
+
+            inputRow.appendChild(input);
+            inputRow.appendChild(btn);
+            container.appendChild(inputRow);
+            panel.body.appendChild(container);
+        }
+
+        this._renderChatMessages(container.querySelector('.ai-chat-messages'));
+    }
+
+    /** 渲染聊天记录 */
+    _renderChatMessages(messagesDiv) {
+        if (!messagesDiv) return;
+        messagesDiv.innerHTML = '';
+
+        const hasKey = !!localStorage.getItem('la_deepseek_api_key');
+
+        // 欢迎提示
+        if (this._chatHistory.length === 0) {
+            const hint = document.createElement('div');
+            hint.className = 'ai-chat-hint';
+            if (!hasKey) {
+                hint.innerHTML = '⚙️ 请先点击右上角齿轮图标设置 <strong>DeepSeek API Key</strong>（<a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">获取 Key</a>），然后即可提问。';
+            } else {
+                hint.textContent = '💡 试试问：「这个矩阵的秩是多少？」「为什么有唯一解？」「秩和解的关系是什么？」';
+            }
+            messagesDiv.appendChild(hint);
+            return;
+        }
+
+        this._chatHistory.forEach((msg, idx) => {
+            const bubble = document.createElement('div');
+            bubble.className = `ai-chat-message ${msg.role}`;
+
+            if (msg.role === 'assistant') {
+                // AI 消息需要 KaTeX 渲染
+                bubble.innerHTML = this._renderMarkdown(msg.content);
+            } else {
+                bubble.textContent = msg.content;
+            }
+
+            messagesDiv.appendChild(bubble);
+        });
+
+        // 滚动到底部
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    /** 切换 API Key 设置面板的显示/隐藏 */
+    _toggleApiKeySettings(container) {
+        const panel = container.querySelector('.ai-chat-settings');
+        const btn = container.querySelector('.ai-chat-settings-btn');
+        if (!panel) return;
+        const isVisible = panel.style.display !== 'none';
+        if (isVisible) {
+            panel.style.display = 'none';
+            if (btn) btn.classList.remove('active');
+        } else {
+            panel.style.display = 'block';
+            if (btn) btn.classList.add('active');
+            // 展开时同步当前 localStorage 的值到输入框
+            const keyInput = panel.querySelector('.ai-chat-key-input');
+            const savedKey = localStorage.getItem('la_deepseek_api_key');
+            if (keyInput && savedKey) keyInput.value = savedKey;
+        }
+    }
+
+    /** 简单的 Markdown + LaTeX 渲染 */
+    _renderMarkdown(text) {
+        // ── 第0步：格式标准化 ────────────────────────────
+        // 将 AI 可能输出的 \(...\) / \[...\] 转为 $...$ / $$...$$
+        // 这样即使 AI 不遵守 system prompt，前端也能正确渲染
+        let processed = text
+            .replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => `$$${math.trim()}$$`)
+            .replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => `$${math.trim()}$`);
+
+        // 保护 LaTeX 公式：先将 $$...$$ 和 $...$ 替换为占位符
+        const blocks = [];
+        let idx = 0;
+
+        // 先处理 $$...$$（显示公式）
+        processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+            const key = `__KATEX_BLOCK_${idx}__`;
+            blocks.push({ key, math: math.trim(), display: true });
+            idx++;
+            return key;
+        });
+
+        // 再处理 $...$（行内公式）
+        processed = processed.replace(/\$([^\$]+?)\$/g, (_, math) => {
+            const key = `__KATEX_INLINE_${idx}__`;
+            blocks.push({ key, math: math.trim(), display: false });
+            idx++;
+            return key;
+        });
+
+        // HTML 转义
+        processed = processed
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // 简单 Markdown：**粗体**、换行
+        processed = processed
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+
+        // 还原 LaTeX 公式
+        blocks.forEach(({ key, math, display }) => {
+            try {
+                if (typeof katex !== 'undefined') {
+                    const rendered = katex.renderToString(math, {
+                        displayMode: display,
+                        throwOnError: false,
+                    });
+                    processed = processed.replace(key, rendered);
+                } else {
+                    processed = processed.replace(key, `<code>${math}</code>`);
+                }
+            } catch (e) {
+                processed = processed.replace(key, `<code style="color:var(--red);">${math}</code>`);
+            }
+        });
+
+        return processed;
+    }
+
+    /** 发送聊天消息 */
+    async _sendChatMessage() {
+        const panel = this._panel('lecture');
+        if (!panel) return;
+
+        const input = panel.body.querySelector('.ai-chat-input');
+        if (!input) return;
+
+        const message = input.value.trim();
+        if (!message) return;
+
+        // 检查 API Key
+        const apiKey = localStorage.getItem('la_deepseek_api_key');
+        if (!apiKey) {
+            const container = panel.body.querySelector('.ai-chat-container');
+            if (container) this._toggleApiKeySettings(container);
+            return;
+        }
+
+        // 清空输入框
+        input.value = '';
+        input.disabled = true;
+        const btn = panel.body.querySelector('.ai-chat-send-btn');
+        if (btn) btn.disabled = true;
+
+        // 追加用户消息
+        this._chatHistory.push({ role: 'user', content: message });
+
+        // 显示 loading
+        this._chatHistory.push({ role: 'assistant', content: '__LOADING__' });
+        const messagesDiv = panel.body.querySelector('.ai-chat-messages');
+        this._renderChatMessages(messagesDiv);
+
+        // 调用 AI API
+        try {
+            const result = await askAI(
+                this.meta.id,
+                this.params,
+                message,
+                this._chatHistory.filter(m => m.content !== '__LOADING__'),
+                apiKey
+            );
+
+            // 移除 loading
+            this._chatHistory.pop();
+
+            if (result.success && result.data && result.data.reply) {
+                this._chatHistory.push({ role: 'assistant', content: result.data.reply });
+            } else {
+                this._chatHistory.push({
+                    role: 'assistant',
+                    content: `❌ ${result.error || 'AI 未返回回答'}`,
+                });
+            }
+        } catch (err) {
+            this._chatHistory.pop();
+            this._chatHistory.push({
+                role: 'assistant',
+                content: `❌ 网络错误: ${err.message}`,
+            });
+        }
+
+        this._renderChatMessages(messagesDiv);
+
+        // 恢复输入
+        input.disabled = false;
+        if (btn) btn.disabled = false;
+        input.focus();
     }
 
     // ─── 验证面板 ────────────────────────────────────────
