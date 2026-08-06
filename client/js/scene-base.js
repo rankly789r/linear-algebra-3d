@@ -36,7 +36,6 @@ export class SceneRenderer {
         this.params = {};
         this.sceneObjects = new THREE.Group();
         this.threeScene.add(this.sceneObjects);
-        this._debounceTimer = null;
         this._isInitialLoad = true;
         this._cachedLectureKey = null;
         this._cachedLectureHTML = null;
@@ -75,6 +74,17 @@ export class SceneRenderer {
 
     /** 销毁本场景（清理 3D 对象和面板内容） */
     destroy() {
+        // 停止动画循环（防止访问已 dispose 的 geometry）
+        this._animating = false;
+        if (this._animFrameId) {
+            cancelAnimationFrame(this._animFrameId);
+            this._animFrameId = null;
+        }
+        // 清除节流定时器（防止对已销毁场景发起 _computeAndRender）
+        if (this._trailingTimer) {
+            clearTimeout(this._trailingTimer);
+            this._trailingTimer = null;
+        }
         // 清理 3D 对象
         while (this.sceneObjects.children.length > 0) {
             const child = this.sceneObjects.children[0];
@@ -849,7 +859,10 @@ export class SceneRenderer {
     async _computeAndRender(params, showLoading = false) {
         const loadingOverlay = document.getElementById('loading-overlay');
         const errorOverlay = document.getElementById('error-overlay');
+
+        // 清除上一次的错误状态
         errorOverlay.style.display = 'none';
+        errorOverlay.removeAttribute('data-retry-params');
 
         // 延迟门：请求超过 200ms 才显示遮罩，避免短暂闪烁
         let loadingTimer = null;
@@ -867,8 +880,7 @@ export class SceneRenderer {
             loadingOverlay.style.display = 'none';
 
             if (!result.success) {
-                errorOverlay.style.display = 'block';
-                document.getElementById('error-message').textContent = result.error || '未知错误';
+                this._showError(result.error || '未知错误', params);
                 return;
             }
 
@@ -878,7 +890,15 @@ export class SceneRenderer {
             this.threeScene.add(newGroup);
             this.sceneObjects = newGroup;
 
-            this.buildScene(result.data);
+            try {
+                this.buildScene(result.data);
+            } catch (buildErr) {
+                // 构建失败：回退 newGroup，恢复 oldGroup，避免空场景残留
+                this.threeScene.remove(newGroup);
+                this._disposeRecursive(newGroup);
+                this.sceneObjects = oldGroup;
+                throw buildErr;
+            }
 
             // 移除旧场景
             this.threeScene.remove(oldGroup);
@@ -891,8 +911,7 @@ export class SceneRenderer {
             this._updateVerifyPanel(result.data);
 
         } catch (err) {
-            errorOverlay.style.display = 'block';
-            document.getElementById('error-message').textContent = `渲染失败: ${err.message}`;
+            this._showError(`渲染失败: ${err.message}`, params);
             console.error(err);
             loadingOverlay.style.display = 'none';
         }
@@ -903,15 +922,56 @@ export class SceneRenderer {
         console.warn('buildScene() 未实现，数据:', data);
     }
 
+    /** 显示错误覆盖层（带重试和关闭按钮） */
+    _showError(message, retryParams) {
+        const errorOverlay = document.getElementById('error-overlay');
+        document.getElementById('error-message').textContent = message;
+        // 保存重试参数，供重试按钮使用
+        if (retryParams) {
+            errorOverlay.setAttribute('data-retry-params', JSON.stringify(retryParams));
+        }
+        errorOverlay.style.display = 'block';
+        this._bindErrorButtons();
+    }
+
+    /** 绑定错误覆盖层按钮（仅首次） */
+    _bindErrorButtons() {
+        if (this._errorButtonsBound) return;
+        this._errorButtonsBound = true;
+
+        const retryBtn = document.getElementById('error-retry-btn');
+        const closeBtn = document.getElementById('error-close-btn');
+        const errorOverlay = document.getElementById('error-overlay');
+
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                const raw = errorOverlay.getAttribute('data-retry-params');
+                if (raw) {
+                    const params = JSON.parse(raw);
+                    errorOverlay.style.display = 'none';
+                    this._computeAndRender(params, true);
+                }
+            });
+        }
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                errorOverlay.style.display = 'none';
+            });
+        }
+    }
+
     _disposeRecursive(obj) {
         if (!obj) return;
         if (obj.geometry) obj.geometry.dispose();
         if (obj.material) {
-            if (Array.isArray(obj.material)) {
-                obj.material.forEach(m => m.dispose());
-            } else {
-                obj.material.dispose();
-            }
+            const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+            materials.forEach(m => {
+                // 释放材质上的纹理（CanvasTexture 等，防止内存泄漏）
+                if (m.map) { m.map.dispose(); m.map = null; }
+                if (m.emissiveMap) { m.emissiveMap.dispose(); m.emissiveMap = null; }
+                if (m.alphaMap) { m.alphaMap.dispose(); m.alphaMap = null; }
+                m.dispose();
+            });
         }
         if (obj.children) {
             for (let i = obj.children.length - 1; i >= 0; i--) {

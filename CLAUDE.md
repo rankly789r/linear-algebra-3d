@@ -39,35 +39,23 @@
 
 ```
 xianxingdaishu/
-├── CLAUDE.md                ← 项目宪章（本文件）
-├── docs/
-│   ├── ARCHITECTURE.md      ← 面板系统、矩阵模块、数据流详解
-│   ├── DEV_GUIDE.md         ← 如何新增场景、技术栈、参数类型参考
-│   ├── SCENE_ANALYSIS.md     ← 第1~3章逐节详尽分析（教材对照，31场景全规划）
-│   ├── SCENE_PLAN.md         ← 场景规划速查（已被 SCENE_ANALYSIS.md 取代）
-│   └── WORK_LOG_2026-08-06.md ← 近期工作总结
-├── .vscode/
-│   ├── launch.json          ← F5 启动调试
-│   └── tasks.json           ← Ctrl+Shift+B 启动服务器
-├── setup.bat / start.bat / app.py / requirements.txt
-├── server/                  ← Python 后端（唯一事实来源）
-│   ├── main.py              ← FastAPI + 场景注册表 + AI 答疑端点
+├── docs/                    ← ARCHITECTURE / DEV_GUIDE / SCENE_ANALYSIS
+├── server/                  ← Python 后端（FastAPI + NumPy，唯一事实来源）
+│   ├── main.py              ← 场景注册表 + AI 答疑端点
 │   ├── math_engine.py       ← NumPy/SciPy 封装
-│   ├── ai_chat.py           ← DeepSeek API 调用 + system prompt 构建
-│   └── scenes/              ← 23 个场景（base.py + ch0~ch3 + matrix_calculator）
-├── client/                  ← 浏览器前端（只负责画）
+│   └── scenes/              ← 24 个场景
+├── client/                  ← 浏览器前端（Three.js，只负责画）
 │   ├── index.html           ← 三栏布局 + 4 个 dock zone
-│   ├── css/style.css        ← 深色主题 + 面板 + 暗色滚动条
 │   └── js/
-│       ├── main.js          ← Three.js 初始化 + 面板初始化 + 场景切换
-│       ├── api.js           ← fetch 封装
-│       ├── draw-utils.js    ← 通用 3D 绘图（drawVector/drawPlane/...）
-│       ├── scene-base.js    ← SceneRenderer 基类（性能优化：200ms加载门+KaTeX缓存+80ms节流）
-│       ├── panel-system.js  ← 可拖拽停靠面板系统
+│       ├── main.js          ← 入口：Three.js 初始化 + 场景切换
+│       ├── scene-base.js    ← SceneRenderer 基类
+│       ├── panel-system.js  ← 可拖拽停靠面板
 │       ├── matrix-display.js← 矩阵 KaTeX 渲染（唯一出口）
-│       ├── vendor/          ← Three.js 0.160.0 本地文件
+│       ├── draw-utils.js    ← 通用 3D 绘图
 │       └── renderers/       ← 18 个场景渲染器
-└── notebooks/verify.ipynb
+├── .vscode/                 ← F5 调试配置
+├── app.py / start.bat / setup.bat
+└── notebooks/
 ```
 
 ## 四、API 协议
@@ -110,45 +98,34 @@ Response: { success, data: { reply: "..." } }
 
 4 个停靠区：`left`(vertical) / `right`(vertical) / `top`(horizontal) / `bottom`(horizontal)
 
-## 六、当前已实现场景（18个）🟢 = 有动画
+## 六、场景清单（24个）🟢 = 有动画
 
-### 基础概念（2个）—— 矩阵 = 线性变换的几何直觉
-| 路由 | 标题 | 动画 |
-|------|------|------|
-| `ch0_r0_matrix_columns` | 矩阵的列——线性变换的密码 | 🟢 基向量滑翔 |
-| `ch0_r1_column_decompose` | 逐列拆解——行与列的几何含义 | 🟢 形状变形 |
-
-### 第1章 行列式（3个）
-| 路由 | 标题 | 动画 |
-|------|------|------|
-| `ch1_r0_det_area` | 2阶行列式的几何意义 | 🟢 正方形→平行四边形 |
-| `ch1_r1_det_volume` | 3阶行列式与平行六面体 | — |
-| `ch1_r2_det_properties` | 行列式的性质 | — |
-
-### 第2章 矩阵及其运算（3个）
-| 路由 | 标题 | 动画 |
-|------|------|------|
-| `ch2_r0_matrix_multiply` | 矩阵乘法的几何含义 | 🟢 四形状+向量同时变形 |
-| `ch2_r1_matrix_inverse` | 逆矩阵 | 🟢 可逆还原/不可逆降维 |
-| `ch2_r2_matrix_transpose` | 转置与内积保持 | — |
-
-### 第3章 矩阵的秩与线性方程组（9个）
-| 路由 | 标题 | 动画 |
-|------|------|------|
-| `ch3_r0_rank_intuition` | 秩的直观理解 | 🟢 圆周+网格点变形 |
-| `ch3_r1_two_vectors` | 两个向量的关系 | — |
-| `ch3_r2_three_vectors` | 三个向量与张成空间 | — |
-| `ch3_r3_matrix_rank` | 矩阵的秩（立方体变换） | 🟢 立方体变形 |
-| `ch3_r4_2x2_system` | 2×2 方程组 | — |
-| `ch3_r5_3x3_system` | 3×3 方程组（三平面） | — |
-| `ch3_r6_homogeneous` | 齐次 vs 非齐次 | — |
-| `ch3_r7_rank_solution` | 秩与解的关系 | — |
-| `ch3_r8_rank_properties` | 秩的性质 | — |
-
-### 工具（1个）
-| 路由 | 标题 | 动画 |
-|------|------|------|
-| `matrix_calculator` | 矩阵计算器 | 🟢 2×2/3×3方阵变换 |
+| 章 | 路由 | 标题 |
+|----|------|------|
+| 基础 | `ch0_r0_matrix_columns` | 矩阵的列——线性变换的密码 🟢 |
+| 基础 | `ch0_r1_column_decompose` | 逐列拆解——行与列的几何含义 🟢 |
+| Ch1 | `ch1_r0_det_area` | 2阶行列式的几何意义 🟢 |
+| Ch1 | `ch1_r1_det_volume` | 3阶行列式与平行六面体 |
+| Ch1 | `ch1_r2_det_properties` | 行列式的性质 |
+| Ch1 | `ch1_r3_permutation` | 排列、对换与空间定向 |
+| Ch2 | `ch2_r0_matrix_multiply` | 矩阵乘法的几何含义 🟢 |
+| Ch2 | `ch2_r1_matrix_inverse` | 逆矩阵 🟢 |
+| Ch2 | `ch2_r2_matrix_transpose` | 转置与内积保持 |
+| Ch2 | `ch2_r3_ax_eq_b` | 行视图与列视图 |
+| Ch2 | `ch2_r4_cramer` | 克拉默法则：解=体积比 |
+| Ch3 | `ch3_r0_rank_intuition` | 秩的直观理解 🟢 |
+| Ch3 | `ch3_r1_two_vectors` | 两个向量的关系 |
+| Ch3 | `ch3_r2_three_vectors` | 三个向量与张成空间 |
+| Ch3 | `ch3_r3_matrix_rank` | 矩阵的秩（立方体变换） 🟢 |
+| Ch3 | `ch3_r4_2x2_system` | 2×2 方程组 |
+| Ch3 | `ch3_r5_3x3_system` | 3×3 方程组（三平面） |
+| Ch3 | `ch3_r6_homogeneous` | 齐次 vs 非齐次 |
+| Ch3 | `ch3_r7_rank_solution` | 秩与解的关系 |
+| Ch3 | `ch3_r8_rank_properties` | 秩的性质 |
+| Ch3 | `ch3_r9_gaussian` | 高斯消元法的几何过程 |
+| Ch3 | `ch3_r12_elem_row` | 初等矩阵·行变换(左乘) 🟢 |
+| Ch3 | `ch3_r13_elem_col` | 初等矩阵·列变换(右乘) 🟢 |
+| 工具 | `matrix_calculator` | 矩阵计算器 🟢 |
 
 ## 七、环境信息
 
@@ -160,58 +137,22 @@ Response: { success, data: { reply: "..." } }
 
 ## 八、常见操作
 
-### 启动
-- **F5**：自动启动服务器 + 等待 uvicorn 就绪 → 系统默认浏览器打开 `localhost:8765`
-  - ⚠️ **禁用 Edge 鼠标手势**（`edge://settings/appearance` → 鼠标手势 → 关），否则右键平移失效
-  - ⚠️ **禁止在 VSCode Simple Browser 中打开**——会触发 GPU 花屏
-- **备选**：双击 `start.bat` 或手动 `conda activate xianxingdaishu && python app.py`
+> 详细步骤见 [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md)。
 
-### 右键与滚轮
-- **右键**：`#viewer` 上 4 层 JS 拦截，外部浏览器需关闭鼠标手势
-- **滚轮**：`.panel-body` 内的滚轮放行，其余 viewer 区域交给 OrbitControls 缩放
-- **侧栏折叠**：左栏/右栏边缘有 `◀`/`▶` 按钮，可折叠至 32px，状态持久化到 `localStorage`
-- **GPU 花屏**：VSCode（Electron/Chromium）与某些 NVIDIA 驱动冲突。用外部浏览器，和本项目无关
+⚠️ **关键警告**：禁用 Edge 鼠标手势；禁止 VSCode Simple Browser（GPU 花屏）。
 
-### AI 答疑功能
-- 讲解面板底部有「🤖 AI 答疑」区域，点击 ⚙️ 设置 DeepSeek API Key（用户自备，存 localStorage）
-- Key 从 [platform.deepseek.com](https://platform.deepseek.com/api_keys) 获取，一次回答不到一分钱
-- 基础讲解可折叠（点击「📖 基础讲解 ▲」），为 AI 聊天腾出空间
-- 后端端点 `POST /api/chat/{scene_name}`，自动将当前场景矩阵数据注入 system prompt
-- 详见 [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md) 的「AI 答疑模块」章节
+### 新增场景（5 步速查）
+1. `server/scenes/chX_rY_name.py` — 继承 BaseScene，实现 `get_meta()` + `compute()`
+2. `client/js/renderers/chX_rY_name.js` — 继承 SceneRenderer，实现 `buildScene()`
+3. `server/main.py` — import + `SCENE_REGISTRY` 注册
+4. `client/js/main.js` — import + `SCENE_RENDERERS` + `getSceneMeta()`
+5. `main.js` `buildNavPanel()` — 菜单按钮
 
-### 面板显示管理
-- 3D 视图左上角「👁 面板」按钮 → 勾选/取消勾选来显示/隐藏各面板
-- 状态持久化到 `localStorage`（key: `la_panel_visibility`）
-- 隐藏的面板可通过菜单重新显示
-
-### 渲染优化
-- 页面不可见时暂停 `requestAnimationFrame`，释放 GPU
-- 加载遮罩 200ms 延迟门（避免快速请求时的闪烁）
-- KaTeX 讲解面板渲染缓存（相同内容不重复渲染）
-- 滑块节流 80ms（减少拖拽时的 API 调用密度）
-
-### 新增场景（标准流程）
-
-1. **后端**：`server/scenes/chX_rY_name.py`，继承 `BaseScene`，实现 `get_meta()` + `compute()`
-2. **渲染器**：`client/js/renderers/chX_rY_name.js`，继承 `SceneRenderer`，实现 `buildScene(data)`
-3. **注册后端**：`server/main.py` 添加 import + `SCENE_REGISTRY`
-4. **注册前端**：`client/js/main.js` 添加 import + `SCENE_RENDERERS` + `getSceneMeta()` 元信息
-5. **菜单**：`main.js` 的 `buildNavPanel()` 中添加 `<button class="scene-btn" data-scene="...">`
-
-### 动画场景开发
-
-若场景需要动画，参考现有 8 个动画场景（ch0_r0, ch0_r1, ch1_r0, ch2_r0, ch2_r1, ch3_r0, ch3_r3, matrix_calculator）的模式：
-- **工厂函数**：`createAnimatableArrow()` / `createUpdatableWireframe()` / `createUpdatableFaces()` —— 从已有渲染器复制
-- **动画数据**：`buildScene()` 中填充 `this._animShapes` 和 `this._animVectors`
-- **动画循环**：`_startAnimation()` → `_animFrame()` → `_interpolateToT(t)`，1.5s ease-out cubic
-- **重播按钮**：`_addAnimationButton()` + 覆写 `_computeAndRender()` 防止按钮被 innerHTML 覆盖
-- **LaTeX 转义**：Python f-string 中 `\\begin` → `\begin`，`\\\\` → `\\`
+### 动画场景
+参考 ch0_r0/ch2_r0/ch3_r0 等 8 个已有动画场景。工厂函数从已有渲染器复制。详见 [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md) 第十节。
 
 ### 调试
-- 后端日志：VSCode 终端（F5）或服务器窗口
-- 前端错误：F12 控制台
-- API 测试：`curl -X POST http://localhost:8765/api/scene/ch3_r4_2x2_system -H "Content-Type: application/json" -d '{"a1":2,...}'`
-- 重置面板：控制台执行 `localStorage.clear(); location.reload();`
+后端：VSCode 终端 · 前端：F12 · API：`curl -X POST ...` · 重置面板：`localStorage.clear(); location.reload();`
 
 ## 九、待扩展
 
@@ -219,22 +160,16 @@ Response: { success, data: { reply: "..." } }
 
 > ⚠️ **教材纠正**：克拉默法则在教材Ch2§4（非Ch1）；初等矩阵在教材Ch3§2（非Ch2）；Ch3有4小节。
 
-| 优先级 | 场景（共16个待建） | 教材位置 |
+| 优先级 | 场景（共10个待建） | 教材位置 |
 |--------|-------------------|---------|
-| ⭐⭐⭐ | ch1_r3_permutation — 排列、对换与空间定向 | Ch1§2 |
 | ⭐⭐⭐ | ch1_r4_cofactor — 按行列展开的几何 | Ch1§5 |
 | ⭐⭐ | ch1_r5_orientation — 行列式与定向 | Ch1§2/§4 |
 | ⭐⭐ | ch1_r6_det_dependence — 行列式与线性相关性 | Ch1§4 |
-| ⭐⭐⭐ | ch2_r3_ax_eq_b — 行视图与列视图 | Ch2§1 |
-| ⭐⭐⭐ | ch2_r4_cramer — 克拉默法则：解=体积比 | Ch2§4 |
 | ⭐⭐ | ch2_r5_det_product — det(AB)=det(A)det(B) | Ch2§2 |
 | ⭐ | ch2_r6_matrix_power — Aⁿ的几何 | Ch2§2 |
 | ⭐ | ch2_r7_block — 分块矩阵的几何 | Ch2§5 |
-| ⭐⭐⭐ | ch3_r9_gaussian — 高斯消元法的几何过程 | Ch3§1 |
 | ⭐⭐⭐ | ch3_r10_row_echelon — 行阶梯形与主元 | Ch3§1 |
 | ⭐ | ch3_r11_equivalence — 等价矩阵与标准形 | Ch3§1 |
-| ⭐⭐⭐ | ch3_r12_elem_row — 初等矩阵·行变换(左乘) | Ch3§2 |
-| ⭐⭐⭐ | ch3_r13_elem_col — 初等矩阵·列变换(右乘) | Ch3§2 |
 | ⭐⭐⭐ | ch3_r14_solution_structure — 解的结构：特解+零空间 | Ch3§4/Ch4§5 |
 | ⭐⭐ | ch3_r15_least_squares — 最小二乘的几何 | Ch3§4 延伸 |
 
@@ -252,3 +187,12 @@ Response: { success, data: { reply: "..." } }
 
 - 界面全中文 · 数学公式 LaTeX（兼容 Obsidian） · 参数：滑块+数值输入双向联动
 - 每场景 3-5 个预设 · 验证面板默认折叠 · 笔记交 Obsidian AI 管家整理
+
+## 十一、AI 行为守则
+
+> 修改此项目前，必须阅读：
+> - **架构约束与已知陷阱** → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（第六节「已知问题与注意事项」）
+> - **开发规范与自查清单** → [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md)（第十二节「提交前自查清单」+ 第十三节「常见陷阱」）
+> - **场景规划** → [docs/SCENE_ANALYSIS.md](docs/SCENE_ANALYSIS.md)
+>
+> 修改完成后：在 `docs/` 下写工作日志；发现新陷阱则更新 DEV_GUIDE.md 第十三节。

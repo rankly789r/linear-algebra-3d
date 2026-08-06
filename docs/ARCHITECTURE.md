@@ -112,13 +112,13 @@ SceneRenderer
 ├── _updateSolutionInfo()  ← 解的类型和说明 → panel('solution').body
 ├── _updateLecturePanel()  ← 讲解内容（KaTeX） → panel('lecture').body
 ├── _updateVerifyPanel()   ← 验证结果 → panel('verify').body
-├── _throttleCompute()     ← 50ms 节流，滑块拖动时减少 API 调用
+├── _throttleCompute()     ← 80ms 节流，滑块拖动时减少 API 调用
 └── destroy()              ← 清空面板 + 递归 dispose 3D 对象
 ```
 
 关键实现细节：
 - **双缓冲**：`_computeAndRender()` 构建新 `THREE.Group`，完成后替换旧 Group，避免闪烁
-- **节流**：滑块 `input` 事件节流 50ms，`change` 事件（松手）立即触发
+- **节流**：滑块 `input` 事件节流 80ms，`change` 事件（松手）立即触发
 - **错误隔离**：API 失败显示 `#error-overlay`，不影响面板系统
 
 ## 四、draw-utils.js 注意事项

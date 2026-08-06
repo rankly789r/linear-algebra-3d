@@ -444,3 +444,32 @@ Response: { success: true, data: { reply: "..." } }
 - 每次请求通过 `api_key` 字段传给后端，后端不存储
 - 部署者可通过环境变量 `DEEPSEEK_API_KEY` 设置默认 Key（可选）
 
+## 十二、提交前自查清单
+
+> 每次修改完成后，逐项确认。这些规则来自项目宪章（CLAUDE.md 第二节），不可绕过。
+
+- [ ] **数学正确性**：前端 `client/js/` 下没有手写矩阵运算、消元法、求秩、求逆、求特征值等逻辑？
+- [ ] **verification 字段**：后端场景 `compute()` 返回了 `verification: {passed, checks}`？（基类会自动补默认值，但最好显式提供）
+- [ ] **场景三处注册**：新增场景在 `server/main.py` SCENE_REGISTRY + `client/js/main.js` SCENE_RENDERERS + 菜单 `buildNavPanel()` 三处都注册了？
+- [ ] **矩阵显示复用**：矩阵面板是否通过 `matrix-display.js` 的 `updateMatrixDisplay()` 而非手写 KaTeX？
+- [ ] **面板引用规范**：是否使用 `this._panel(id)` 而非 `document.getElementById()` 操作面板？
+- [ ] **dispose 完整性**：修改了 `scene-base.js` 的 dispose 逻辑后，确认覆盖了 **geometry / material / texture / animationFrame / timer** 五种资源？
+- [ ] **双缓冲安全**：`buildScene()` 中的异常不会导致空 Group 残留？（基类 `_computeAndRender()` 已做 try-catch 保护，但新增渲染器时注意不要在构造函数中做可能抛异常的事）
+
+## 十三、常见陷阱
+
+> 这些是项目中实际踩过的坑。看到类似场景时，先查这里。
+
+| 陷阱 | 症状 | 正确做法 |
+|------|------|----------|
+| `drawVector().children.forEach(c => group.add(c))` | 箭头锥体丢失 | `forEach` 迭代中 `group.add()` 会从源 Group 移除 child，导致数组移位、索引 1 的 cone 被跳过。**整体**添加：`group.add(drawVector(...))` |
+| Canvas 2D 渲染数学符号（如 ᵀ U+1D40） | 显示为方块 □ | Windows 上 Arial / sans-serif 不含 Unicode Plane 1 字符。用 SVG 替代或切换到含该字符的字体 |
+| `.bat` 文件用 UTF-8 编码 | 中文乱码 | cmd.exe 按 CP936/GBK 解码。`start.bat` 已改用纯英文 ASCII |
+| `requestAnimationFrame` 返回的 ID 不保存 | 场景切换后报错 / 内存泄漏 | 动画场景中 rAF 的 ID 必须存到 `this._animFrameId`，`destroy()` 中 `cancelAnimationFrame()` |
+| `conda activate` 在脚本中不可靠 | 脚本执行中断 | 用 `conda run -n xianxingdaishu python ...` 替代 |
+| Python f-string 中 LaTeX 反斜杠 | KaTeX 解析失败 | `\\begin` → `\begin`，`\\\\` → `\\`（Python 先转义，LaTeX 再解析） |
+| 后端返回的 `matrices` 中 `data` 是 NumPy array | JSON 序列化失败 | 必须 `.tolist()` 转换：`"data": A.tolist()` |
+| 面板 `.body` 用 `innerHTML` 整体替换 | 动态添加的 DOM（如动画重播按钮）被覆盖 | 覆写 `_computeAndRender()` 在 `super` 调用后重新添加动态元素 |
+| `_restoreSize()` 在 `this.el` 赋值前调用 | 面板尺寸恢复从未生效（整个项目历史） | 确保 `this.el = el` 之后再调用 `_restoreSize()` |
+| `THREE.Geometry` 已弃用仍使用 | Three.js 0.160 中报错 | 使用 `THREE.BufferGeometry` |
+

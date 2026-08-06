@@ -13,7 +13,6 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from server.math_engine import MathEngine
 from server.scenes.base import SceneParams
 from server.ai_chat import ask_deepseek, build_system_prompt
 

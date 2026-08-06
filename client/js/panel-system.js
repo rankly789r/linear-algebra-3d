@@ -99,15 +99,16 @@ class DockPanel {
         this._resizeHandleW = resizeW;
         this._bindResizeEvents(resizeW, 'width');
 
-        // 恢复已保存的自定义尺寸
-        this._restoreSize();
-
         // 初始状态
         if (this.collapsed) {
             el.classList.add('collapsed');
         }
 
         this.el = el;
+
+        // 恢复已保存的自定义尺寸（必须在 this.el 赋值之后）
+        this._restoreSize();
+
         return el;
     }
 
