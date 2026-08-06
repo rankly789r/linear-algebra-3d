@@ -40,8 +40,13 @@
 |------------------|------|
 | `la_panel_layout` | 面板位置、排序、折叠状态 |
 | `la_panel_sizes` | 用户拖拽 resize 的自定义尺寸 |
+| `la_panel_visibility` | 面板显示/隐藏状态 `{panelId: bool}` |
 | `la_current_scene` | 上次打开的场景 |
 | `la_sidebar_collapsed` | 左右侧栏折叠状态 `{left: bool, right: bool}` |
+| `la_deepseek_api_key` | AI 答疑 DeepSeek API Key |
+| `la_lecture_basic_collapsed` | 讲解子面板「基础讲解」折叠状态 `'1'`/`'0'` |
+| `la_lecture_ai_collapsed` | 讲解子面板「AI 答疑」折叠状态 `'1'`/`'0'` |
+| `la_lecture_subpanel_order` | 讲解子面板排列顺序 `['basic','ai']` 或 `['ai','basic']` |
 
 重置布局：浏览器控制台执行 `localStorage.clear(); location.reload();`
 
@@ -82,7 +87,7 @@ updateMatrixDisplay(panel, matrices);
 ```
 
 - `scene-base.js` 的 `_updateMatrixDisplay()` 只一行调用
-- **所有 9 个场景的矩阵显示都通过此模块**
+- **所有场景的矩阵显示都通过此模块**
 - 新增场景只需后端返回 `matrices` 字段，零前端代码
 
 ### 排版机制（CSS 驱动，非 JS）

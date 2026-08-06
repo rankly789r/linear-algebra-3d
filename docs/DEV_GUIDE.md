@@ -250,10 +250,12 @@ updateMatrixDisplay(panel, matrices);
 
 - 面板位置、排序、折叠状态 → `localStorage` key: `la_panel_layout`
 - 自定义尺寸 → `localStorage` key: `la_panel_sizes`
-- 当前场景 → `localStorage` key: `la_current_scene`
 - 面板显示/隐藏 → `localStorage` key: `la_panel_visibility`
-- 当前正在编辑的场景 → `localStorage` key: `la_current_scene`
+- 左右栏折叠 → `localStorage` key: `la_sidebar_collapsed`
+- 当前场景 → `localStorage` key: `la_current_scene`
 - AI API Key → `localStorage` key: `la_deepseek_api_key`
+- 讲解子面板折叠 → `localStorage` keys: `la_lecture_basic_collapsed`, `la_lecture_ai_collapsed`
+- 讲解子面板排序 → `localStorage` key: `la_lecture_subpanel_order`
 - 重置：浏览器控制台执行 `localStorage.clear(); location.reload();`
 
 ### 面板显示管理
@@ -306,11 +308,32 @@ updateMatrixDisplay(panel, matrices);
 
 后端返回 `lecture.sections` 即可自动渲染到「📖 讲解」面板。
 
-面板布局（自上而下）：
-1. **📖 基础讲解**（可折叠）—— 点击 `▲` / `▼` 收起/展开，为 AI 聊天腾空间
-2. **🤖 AI 答疑** —— 用户提问，后端调用 DeepSeek API，结合当前场景数据回答
+### 子面板架构（v1.9+）
 
-折叠状态由 `this._lectureCollapsed` 控制，切换场景时重置为展开。
+讲解面板内部拆分为两个可拖拽排序的子面板：
+
+1. **📖 基础讲解** — 后端返回的 `lecture.sections` 渲染在这里，可独立折叠
+2. **🤖 AI 答疑** — 聊天界面，用户提问后调用 DeepSeek API
+
+两个子面板支持：
+- **独立折叠**：分别点击 `▲`/`▼` 收起/展开，状态持久化到 localStorage
+- **拖拽排序**：鼠标拖拽交换基础讲解和 AI 答疑的位置（6px 死区防误触）
+- **顺序持久化**：`la_lecture_subpanel_order` 记录排列顺序
+
+### 相关 localStorage key
+
+| Key | 内容 |
+|-----|------|
+| `la_lecture_basic_collapsed` | `'1'`/`'0'` — 基础讲解子面板折叠状态 |
+| `la_lecture_ai_collapsed` | `'1'`/`'0'` — AI 答疑子面板折叠状态 |
+| `la_lecture_subpanel_order` | `['basic','ai']` 或 `['ai','basic']` — 排列顺序 |
+
+### 实现位置
+
+- `scene-base.js` `_updateLecturePanel()` — 构建/更新讲解面板
+- `scene-base.js` `_ensureSubPanels()` — 确保子面板 DOM 结构存在
+- `scene-base.js` `_initSubPanelDrag()` — 绑定子面板拖拽排序事件
+- 折叠状态在构造函数中从 localStorage 恢复，切换场景时保持不重置
 
 ### 后端格式（基础讲解部分）
 
@@ -472,4 +495,6 @@ Response: { success: true, data: { reply: "..." } }
 | 面板 `.body` 用 `innerHTML` 整体替换 | 动态添加的 DOM（如动画重播按钮）被覆盖 | 覆写 `_computeAndRender()` 在 `super` 调用后重新添加动态元素 |
 | `_restoreSize()` 在 `this.el` 赋值前调用 | 面板尺寸恢复从未生效（整个项目历史） | 确保 `this.el = el` 之后再调用 `_restoreSize()` |
 | `THREE.Geometry` 已弃用仍使用 | Three.js 0.160 中报错 | 使用 `THREE.BufferGeometry` |
+| `innerHTML` 全量替换覆盖动态子元素 | 讲觧面板的动画重播按钮、AI 聊天 UI 消失 | 使用专用容器（如 `[data-section="solution-info"]`），只替换容器内容不触碰 panel.body 其他子元素 |
+| ResizeObserver 打断 CSS transition | 折叠左右栏时 3D 画面跳变无动画 | 废弃 ResizeObserver，将 `resize()` 放入 `animate()` 渲染循环每帧检查。`renderer.setSize()` 尺寸未变时内部短路 |
 

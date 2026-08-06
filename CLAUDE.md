@@ -52,7 +52,7 @@ xianxingdaishu/
 │       ├── panel-system.js  ← 可拖拽停靠面板
 │       ├── matrix-display.js← 矩阵 KaTeX 渲染（唯一出口）
 │       ├── draw-utils.js    ← 通用 3D 绘图
-│       └── renderers/       ← 18 个场景渲染器
+│       └── renderers/       ← 24 个场景渲染器
 ├── .vscode/                 ← F5 调试配置
 ├── app.py / start.bat / setup.bat
 └── notebooks/
@@ -149,7 +149,7 @@ Response: { success, data: { reply: "..." } }
 5. `main.js` `buildNavPanel()` — 菜单按钮
 
 ### 动画场景
-参考 ch0_r0/ch2_r0/ch3_r0 等 8 个已有动画场景。工厂函数从已有渲染器复制。详见 [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md) 第十节。
+参考 ch0_r0/ch2_r0/ch3_r0 等 10 个已有动画场景。工厂函数已提取到 `draw-utils.js`（`createUpdatableWireframe`、`createUpdatableFaces`、`createAnimatableArrow`），新场景从 `draw-utils.js` 导入即可。详见 [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md) 第十节。
 
 ### 调试
 后端：VSCode 终端 · 前端：F12 · API：`curl -X POST ...` · 重置面板：`localStorage.clear(); location.reload();`
