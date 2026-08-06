@@ -96,22 +96,61 @@ function createAxisLine(start, end, color) {
 // ─── 标签（使用 Sprite） ───────────────────────────────────
 
 function createLabel(text, position, color) {
+    const lines = text.split('\n');
+    const fontSize = 36;
+    const lineHeight = fontSize * 1.3;
+    const paddingX = 16;
+    const paddingY = 10;
+
+    // 先测量文字宽度
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 64;
     const ctx = canvas.getContext('2d');
-    ctx.font = 'bold 36px sans-serif';
+    ctx.font = `bold ${fontSize}px sans-serif`;
+
+    let maxWidth = 0;
+    lines.forEach(line => {
+        const w = ctx.measureText(line).width;
+        if (w > maxWidth) maxWidth = w;
+    });
+
+    const textHeight = lines.length * lineHeight;
+
+    // 最小尺寸兼容原有 128×64（向后兼容单行短标签）
+    canvas.width = Math.max(128, Math.ceil(maxWidth + paddingX * 2));
+    canvas.height = Math.max(64, Math.ceil(textHeight + paddingY * 2));
+
+    // 清空画布（canvas resize 会重置状态，需重设）
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = `bold ${fontSize}px sans-serif`;
     ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, 64, 32);
+
+    // 逐行绘制（fillText 不支持 \n，需手动分行）
+    const startY = (canvas.height - textHeight) / 2 + lineHeight / 2;
+    lines.forEach((line, i) => {
+        ctx.fillText(line, canvas.width / 2, startY + i * lineHeight);
+    });
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
-    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    texture.premultipliedAlpha = false;  // 消除抗锯齿黑边
+
+    const spriteMat = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: false,   // 不被平面/几何体遮挡
+        depthWrite: false,  // 不干扰其他物体的深度缓冲
+    });
     const sprite = new THREE.Sprite(spriteMat);
     sprite.position.copy(position);
-    sprite.scale.set(0.8, 0.4, 1);
+    sprite.renderOrder = 999;  // 最后渲染，始终可见
+
+    // 缩放：以 64px 高 = 0.4 世界单位为基准，等比缩放
+    const scaleY = 0.4 * (canvas.height / 64);
+    const scaleX = scaleY * (canvas.width / canvas.height);
+    sprite.scale.set(scaleX, scaleY, 1);
+
     return sprite;
 }
 
