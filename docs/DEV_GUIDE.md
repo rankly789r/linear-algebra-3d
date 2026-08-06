@@ -561,4 +561,5 @@ Response: { success: true, data: { reply: "..." } }
 | `THREE.Geometry` 已弃用仍使用 | Three.js 0.160 中报错 | 使用 `THREE.BufferGeometry` |
 | `innerHTML` 全量替换覆盖动态子元素 | 讲觧面板的动画重播按钮、AI 聊天 UI 消失 | 使用专用容器（如 `[data-section="solution-info"]`），只替换容器内容不触碰 panel.body 其他子元素 |
 | ResizeObserver 打断 CSS transition | 折叠左右栏时 3D 画面跳变无动画 | 废弃 ResizeObserver，将 `resize()` 放入 `animate()` 渲染循环每帧检查。`renderer.setSize()` 尺寸未变时内部短路 |
+| 手写 `new THREE.Sprite()` 做 3D 标注 | 黑底、黑边、被几何体遮挡、`\n` 不换行 | **始终**用 `draw-utils.js` 的 `createLabel(text, position, color)`。它已处理：①手动分行（Canvas fillText 不支持 `\n`）② `premultipliedAlpha: false` 消黑边 ③ `depthTest: false` + `depthWrite: false` + `renderOrder: 999` 防遮挡。`drawVector()` 的标签也走此函数 |
 
