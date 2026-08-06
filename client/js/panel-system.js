@@ -626,6 +626,11 @@ class PanelManager {
         return this.panels.get(id);
     }
 
+    /** 获取所有面板的 id 和标题列表（供设置菜单等模块使用，避免硬编码面板清单） */
+    getPanels() {
+        return Array.from(this.panels.values()).map(p => ({ id: p.id, title: p.title }));
+    }
+
     /** 获取区域 */
     getZone(id) {
         return this.zones.get(id);

@@ -32,18 +32,18 @@ class Ch3R12ElemRow(BaseScene):
                 "elem_type": {
                     "label": "初等变换类型",
                     "type": "choice",
-                    "default": "swap",
-                    "options": ["swap", "scale", "add"],
+                    "default": "交换",
+                    "options": ["交换", "倍乘", "倍加"],
                 },
                 "i": {
-                    "label": "行索引 i（0-based）",
+                    "label": "行索引 i",
                     "type": "int",
-                    "default": 0, "min": 0, "max": 2, "step": 1,
+                    "default": 1, "min": 1, "max": 3, "step": 1,
                 },
                 "j": {
-                    "label": "行索引 j（0-based）",
+                    "label": "行索引 j",
                     "type": "int",
-                    "default": 1, "min": 0, "max": 2, "step": 1,
+                    "default": 2, "min": 1, "max": 3, "step": 1,
                 },
                 "k": {
                     "label": "倍数 k",
@@ -62,23 +62,23 @@ class Ch3R12ElemRow(BaseScene):
                     "label": "交换前两行（翻转）",
                     "type": "unique",
                     "params": {
-                        "dim": 3, "elem_type": "swap", "i": 0, "j": 1, "k": 1,
+                        "dim": 3, "elem_type": "交换", "i": 1, "j": 2, "k": 1,
                         "matrix_A": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
                     },
                 },
                 {
-                    "label": "第0行×2（拉伸）",
+                    "label": "第1行×2（拉伸）",
                     "type": "unique",
                     "params": {
-                        "dim": 3, "elem_type": "scale", "i": 0, "j": 0, "k": 2,
+                        "dim": 3, "elem_type": "倍乘", "i": 1, "j": 1, "k": 2,
                         "matrix_A": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
                     },
                 },
                 {
-                    "label": "第1行+第0行×1.5（剪切）",
+                    "label": "第2行+第1行×1.5（剪切）",
                     "type": "unique",
                     "params": {
-                        "dim": 3, "elem_type": "add", "i": 1, "j": 0, "k": 1.5,
+                        "dim": 3, "elem_type": "倍加", "i": 2, "j": 1, "k": 1.5,
                         "matrix_A": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
                     },
                 },
@@ -86,7 +86,7 @@ class Ch3R12ElemRow(BaseScene):
                     "label": "2×2 行交换",
                     "type": "unique",
                     "params": {
-                        "dim": 2, "elem_type": "swap", "i": 0, "j": 1, "k": 0,
+                        "dim": 2, "elem_type": "交换", "i": 1, "j": 2, "k": 0,
                         "matrix_A": [[2, 1], [0, 3]],
                     },
                 },
@@ -94,7 +94,7 @@ class Ch3R12ElemRow(BaseScene):
                     "label": "2×2 剪切",
                     "type": "unique",
                     "params": {
-                        "dim": 2, "elem_type": "add", "i": 1, "j": 0, "k": 1,
+                        "dim": 2, "elem_type": "倍加", "i": 2, "j": 1, "k": 1,
                         "matrix_A": [[2, 1], [0, 3]],
                     },
                 },
@@ -103,9 +103,11 @@ class Ch3R12ElemRow(BaseScene):
 
     def compute(self, params: SceneParams) -> dict:
         dim = int(params.get("dim", 3))
-        elem_type = params.get("elem_type", "swap")
-        i = int(params.get("i", 0))
-        j = int(params.get("j", 1))
+        elem_type = params.get("elem_type", "交换")
+        # 兼容旧版英文值（前端可能缓存了旧 JS）
+        elem_type = {"swap": "交换", "scale": "倍乘", "add": "倍加"}.get(elem_type, elem_type)
+        i = int(params.get("i", 1)) - 1   # 1-based → 0-based
+        j = int(params.get("j", 2)) - 1
         k = float(params.get("k", 1.0))
 
         # 读取矩阵 A
@@ -117,7 +119,7 @@ class Ch3R12ElemRow(BaseScene):
 
         # 生成初等矩阵 E（左乘 = 行变换）
         n = dim
-        if elem_type == "swap":
+        if elem_type == "交换":
             if i == j:
                 j = (i + 1) % n
             i = min(i, n - 1)
@@ -127,14 +129,14 @@ class Ch3R12ElemRow(BaseScene):
             E = M.elem_swap(n, i, j)
             op_desc = f"交换第 {i+1} 行和第 {j+1} 行"
             det_E = -1.0
-        elif elem_type == "scale":
+        elif elem_type == "倍乘":
             i = min(i, n - 1)
             if abs(k) < 1e-10:
                 k = 2.0  # 不允许零倍乘
             E = M.elem_scale(n, i, k)
             op_desc = f"第 {i+1} 行 × {k}"
             det_E = float(k)
-        else:  # add
+        else:  # 倍加
             i = min(i, n - 1)
             j = min(j, n - 1)
             if i == j:
@@ -157,12 +159,15 @@ class Ch3R12ElemRow(BaseScene):
         ]
 
         # 变换数据（用于 3D 动画）
+        # transforms[0]: unit → A（虚线 ghost 参考）
+        # transforms[1]: A(unit) → EA(unit)（动画形状，从 A 结果变形到 EA 结果）
         transforms = []
         t_A = self._get_transform_data(A, "A")
         if t_A:
             transforms.append(t_A)
         t_EA = self._get_transform_data(EA, f"E·A ({op_desc})")
         if t_EA:
+            t_EA["unit_shape"] = t_A["transformed_shape"]  # 起点 = A 作用后的顶点
             transforms.append(t_EA)
 
         matrices = [
@@ -182,7 +187,6 @@ class Ch3R12ElemRow(BaseScene):
         }
 
         # ─── 讲解内容 ─────────────────────────────────────
-        elem_type_cn = {"swap": "交换", "scale": "倍乘", "add": "倍加"}[elem_type]
 
         return {
             "scene_data": scene_data,
@@ -193,7 +197,7 @@ class Ch3R12ElemRow(BaseScene):
                                f"左乘 = 行操作。改变的是目标空间的坐标。"
                                f"高斯消元的每一步都是一个初等矩阵左乘。",
                 "details": {
-                    "操作类型": {"swap": "交换两行", "scale": "倍乘某行", "add": "倍加某行"}[elem_type],
+                    "操作类型": {"交换": "交换两行", "倍乘": "倍乘某行", "倍加": "倍加某行"}[elem_type],
                     "行操作描述": op_desc,
                     "det(E)": f"{M.matrix_determinant(E):.4f}",
                     "E 可逆": "是",
@@ -226,7 +230,7 @@ class Ch3R12ElemRow(BaseScene):
                 {
                     "title": "三种行变换的几何效果",
                     "content": (
-                        f"当前操作：**{op_desc}**（{elem_type_cn}）\n\n"
+                        f"当前操作：**{op_desc}**（{elem_type}）\n\n"
                         + "对于 $3 \\times 3$ 矩阵（视为线性变换），左乘初等矩阵的效果：\n\n"
                         + "- **交换两行** → 形状关于某平面对称翻转（改变了手性，$\\det$ 变号）\n"
                         + "- **某行倍乘 $k$** → 在对应坐标轴方向拉伸 $k$ 倍（$\\det$ 乘以 $k$）\n"
@@ -248,48 +252,3 @@ class Ch3R12ElemRow(BaseScene):
             ]},
         }
 
-    def _build_matrix(self, data: list, rows: int, cols: int) -> np.ndarray:
-        """从二维列表构建 NumPy 矩阵"""
-        arr = np.zeros((rows, cols), dtype=float)
-        for r in range(min(rows, len(data))):
-            row_data = data[r] if isinstance(data[r], list) else []
-            for c in range(min(cols, len(row_data))):
-                try:
-                    arr[r, c] = float(row_data[c])
-                except (ValueError, TypeError):
-                    arr[r, c] = 0.0
-        return arr
-
-    def _get_transform_data(self, mat: np.ndarray, label: str = "") -> dict | None:
-        """为 2×2 或 3×3 方阵生成单位形状→变换形状的数据"""
-        n = mat.shape[0]
-        if n == 2:
-            unit = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]]
-            transformed = []
-            for v in unit:
-                t = mat @ np.array([v[0], v[1]])
-                transformed.append([float(t[0]), float(t[1]), 0.0])
-            return {
-                "dim": 2,
-                "label": label,
-                "unit_shape": unit,
-                "transformed_shape": transformed,
-                "det": M.matrix_determinant(mat),
-            }
-        elif n == 3:
-            unit = [
-                [0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1],
-                [1, 1, 0], [1, 0, 1], [0, 1, 1], [1, 1, 1],
-            ]
-            transformed = []
-            for v in unit:
-                t = mat @ np.array(v)
-                transformed.append([float(t[0]), float(t[1]), float(t[2])])
-            return {
-                "dim": 3,
-                "label": label,
-                "unit_shape": unit,
-                "transformed_shape": transformed,
-                "det": M.matrix_determinant(mat),
-            }
-        return None

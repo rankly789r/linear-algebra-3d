@@ -25,8 +25,10 @@
     ]
 """
 
+import numpy as np
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+from server.math_engine import MathEngine as M
 
 
 @dataclass
@@ -78,6 +80,57 @@ class BaseScene:
             "passed": passed,
             "checks": checks
         }
+
+    @staticmethod
+    def _build_matrix(data: list, rows: int, cols: int) -> np.ndarray:
+        """从二维列表构建 NumPy 矩阵，自动填充/裁剪到目标尺寸"""
+        arr = np.zeros((rows, cols), dtype=float)
+        for r in range(min(rows, len(data))):
+            row_data = data[r] if isinstance(data[r], list) else []
+            for c in range(min(cols, len(row_data))):
+                try:
+                    arr[r, c] = float(row_data[c])
+                except (ValueError, TypeError):
+                    arr[r, c] = 0.0
+        return arr
+
+    @staticmethod
+    def _get_transform_data(mat: np.ndarray, label: str = "") -> dict | None:
+        """
+        为 2×2 或 3×3 方阵生成单位形状→变换形状的数据。
+        用于 3D 可视化中的线性变换演示。
+        返回 None 表示矩阵不是 2×2 或 3×3。
+        """
+        if mat.shape == (2, 2):
+            unit = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]]
+            transformed = []
+            for v in unit:
+                t = mat @ np.array([v[0], v[1]])
+                transformed.append([float(t[0]), float(t[1]), 0.0])
+            return {
+                "dim": 2,
+                "label": label,
+                "unit_shape": unit,
+                "transformed_shape": transformed,
+                "det": M.matrix_determinant(mat),
+            }
+        elif mat.shape == (3, 3):
+            unit = [
+                [0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1],
+                [1, 1, 0], [1, 0, 1], [0, 1, 1], [1, 1, 1],
+            ]
+            transformed = []
+            for v in unit:
+                t = mat @ np.array(v)
+                transformed.append([float(t[0]), float(t[1]), float(t[2])])
+            return {
+                "dim": 3,
+                "label": label,
+                "unit_shape": unit,
+                "transformed_shape": transformed,
+                "det": M.matrix_determinant(mat),
+            }
+        return None
 
 
 # ─── 参数工厂函数 ──────────────────────────────────────────

@@ -80,17 +80,8 @@ export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneNa
     const menu = document.getElementById('settings-menu');
     if (!toggleBtn || !menu) return;
 
-    // ── 可管理的面板列表 ──
-    const panelDefs = [
-        { id: 'scenenav', label: '📐 场景目录' },
-        { id: 'presets',  label: '📌 预设情形' },
-        { id: 'params',   label: '🎚 参数调节' },
-        { id: 'camera',   label: '📷 视角控制' },
-        { id: 'solution', label: '📊 分析结果' },
-        { id: 'lecture',  label: '📖 讲解' },
-        { id: 'verify',   label: '🔍 数学验证' },
-        { id: 'matrix',   label: '📋 矩阵数据' },
-    ];
+    // ── 可管理的面板列表（从 PanelManager 动态获取，避免硬编码）──
+    const panelDefs = panelManager.getPanels().map(p => ({ id: p.id, label: p.title }));
 
     // ═══════════════════════════════════════════════════════
     // 1. 面板可见性子菜单
