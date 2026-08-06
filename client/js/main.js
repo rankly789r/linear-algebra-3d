@@ -187,6 +187,7 @@ window.panelManager = panelManager;
     function _applyPanelVisibility(panelId, visible) {
         const panel = panelManager.getPanel(panelId);
         if (!panel) return;
+        panel._userHidden = !visible;
         if (visible) {
             panel.show();
         } else {

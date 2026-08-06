@@ -25,6 +25,7 @@ class DockPanel {
         this._resizeHandleW = null;  // 右侧手柄（调宽度，仅横向区域显示）
         this._customSize = null;     // 用户拖拽设置的自定义尺寸 { width, height }
         this._snapFlashTimer = null;
+        this._userHidden = false;   // 用户通过可见性菜单显式隐藏后置 true
     }
 
     /**

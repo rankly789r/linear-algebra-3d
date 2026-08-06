@@ -112,10 +112,10 @@ export class SceneRenderer {
         return pm ? pm.getPanel(id) : null;
     }
 
-    /** 显示面板 */
+    /** 显示面板（尊重用户显式隐藏的选择） */
     _showPanel(id) {
         const p = this._panel(id);
-        if (p) p.show();
+        if (p && !p._userHidden) p.show();
     }
 
     /** 隐藏面板 */
