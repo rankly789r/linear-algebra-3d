@@ -300,8 +300,8 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0, 0.5);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.minDistance = 2;
-controls.maxDistance = 20;
+controls.minDistance = 0.5;
+controls.maxDistance = 30;
 controls.maxPolarAngle = Math.PI * 0.85;
 controls.update();
 
@@ -345,15 +345,6 @@ function resize() {
     camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
-
-// 监听 viewer 尺寸变化，与列 CSS transition 同步缩放
-// 只观察 viewer 一个元素，避免之前 4 个 dock zone 观察者的连锁触发
-// RAF 包装至关重要：renderer.setSize() 若在 ResizeObserver 回调中同步调用，
-// 会打断当前帧的 CSS transition paint，导致过渡动画中间帧被跳过（画面跳动）
-new ResizeObserver(() => {
-    requestAnimationFrame(() => resize());
-}).observe(viewer);
-
 resize();
 
 // ─── 动画循环（页面不可见时暂停渲染） ──
@@ -365,6 +356,7 @@ let animRunning = true;
 function animate() {
     if (!animRunning) return;
     animFrameId = requestAnimationFrame(animate);
+    resize();  // 每帧同步 canvas 尺寸，确保 CSS transition 期间平滑跟随
     controls.update();
     renderer.render(scene, camera);
 }
