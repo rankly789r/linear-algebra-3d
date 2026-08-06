@@ -189,47 +189,90 @@ export class ColumnDecomposeRenderer extends SceneRenderer {
         );
         this.sceneObjects.add(dot);
 
-        // ─── 启动动画 ─────────────────────────────────────
-        this._animTimeout = setTimeout(() => this._startAnimation(), 350);
+        // ─── 根据开关状态决定是否自动播放 ────────────────
+        if (this._isAnimAutoEnabled()) {
+            this._animTimeout = setTimeout(() => this._startAnimation(), 350);
+        } else {
+            this._setToTarget();
+        }
     }
 
     // ═══════════════════════════════════════════════════════
-    // 覆写 _computeAndRender：在父类完成后重新添加动画按钮
-    // （父类的 _updateSolutionInfo 会 wipe innerHTML）
+    // 覆写 _computeAndRender：在父类完成后重新添加动画 UI
     // ═══════════════════════════════════════════════════════
 
     async _computeAndRender(params, showLoading) {
         await super._computeAndRender(params, showLoading);
-        this._addAnimationButton();
+        this._addAnimationUI();
     }
 
     // ═══════════════════════════════════════════════════════
     // 动画系统
     // ═══════════════════════════════════════════════════════
 
-    /** 在 solution 面板中添加动画按钮 */
-    _addAnimationButton() {
+    /** localStorage key */
+    static get AUTO_ANIM_KEY() { return 'la_ch0r1_anim_auto'; }
+
+    /** 读取自动动画开关状态 */
+    _isAnimAutoEnabled() {
+        return localStorage.getItem(ColumnDecomposeRenderer.AUTO_ANIM_KEY) === '1';
+    }
+
+    /** 写入自动动画开关状态 */
+    _setAnimAutoEnabled(val) {
+        localStorage.setItem(ColumnDecomposeRenderer.AUTO_ANIM_KEY, val ? '1' : '0');
+    }
+
+    /** 在 solution 面板中添加动画控制 UI（开关 + 播放按钮） */
+    _addAnimationUI() {
         const panel = this._panel('solution');
         if (!panel) return;
         const body = panel.body;
 
-        // 避免重复添加
-        if (body.querySelector('.anim-replay-btn')) return;
+        // 去重
+        if (body.querySelector('.anim-control-row')) return;
 
-        const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'margin-bottom:8px;';
+        const row = document.createElement('div');
+        row.className = 'anim-control-row';
+        row.style.cssText = 'margin-bottom:8px;display:flex;gap:6px;';
 
-        const btn = document.createElement('button');
-        btn.className = 'anim-replay-btn';
-        btn.textContent = '▶ 演示动画';
-        btn.style.cssText = 'padding:6px 14px;font-size:0.82rem;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;width:100%;';
-        btn.addEventListener('click', () => {
-            // 重置到起点再播放
+        // ─── 自动动画开关 ───
+        const autoEnabled = this._isAnimAutoEnabled();
+        const toggle = document.createElement('button');
+        toggle.className = 'anim-auto-toggle';
+        toggle.style.cssText =
+            'padding:6px 10px;font-size:0.78rem;' +
+            'background:' + (autoEnabled ? 'var(--accent)' : '#444') + ';' +
+            'color:#fff;border:none;border-radius:4px;cursor:pointer;' +
+            'white-space:nowrap;flex-shrink:0;';
+        toggle.textContent = autoEnabled ? '⟳ 自动动画: 开' : '⟳ 自动动画: 关';
+        toggle.addEventListener('click', () => {
+            const nowOn = !this._isAnimAutoEnabled();
+            this._setAnimAutoEnabled(nowOn);
+            toggle.textContent = nowOn ? '⟳ 自动动画: 开' : '⟳ 自动动画: 关';
+            toggle.style.background = nowOn ? 'var(--accent)' : '#444';
+            if (nowOn && !this._animating) {
+                this._interpolateToT(0);
+                this._startAnimation();
+            }
+        });
+        row.appendChild(toggle);
+
+        // ─── 手动播放按钮 ───
+        const playBtn = document.createElement('button');
+        playBtn.className = 'anim-replay-btn';
+        playBtn.textContent = '▶ 演示动画';
+        playBtn.style.cssText =
+            'padding:6px 14px;font-size:0.82rem;' +
+            'background:var(--accent);color:#fff;border:none;' +
+            'border-radius:4px;cursor:pointer;flex:1;';
+        playBtn.addEventListener('click', () => {
             this._interpolateToT(0);
             this._startAnimation();
         });
-        btnRow.appendChild(btn);
-        body.insertBefore(btnRow, body.firstChild);
+        row.appendChild(playBtn);
+
+        body.insertBefore(row, body.firstChild);
     }
 
     /** 开始动画：从恒等变换插值到目标 */
@@ -312,6 +355,12 @@ export class ColumnDecomposeRenderer extends SceneRenderer {
                 line.material.opacity = dashOpacity;
             });
         }
+    }
+
+    /** 直接跳到最终状态（无动画） */
+    _setToTarget() {
+        this._interpolateToT(1.0);
+        this._updateAnimButton('🔄 重播动画', false);
     }
 
     _updateAnimButton(text, disabled) {
