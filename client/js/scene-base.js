@@ -988,10 +988,15 @@ export class SceneRenderer {
 
             messagesDiv.appendChild(bubble);
 
-            // 工具调用确认卡片
-            if (msg.toolCall && msg.toolCall.action === 'set_params' && msg.toolCall._applied === undefined) {
-                const card = this._createToolCard(msg.toolCall, idx);
-                messagesDiv.appendChild(card);
+            // 工具调用确认卡片（支持旧格式 toolCall 单数 + 新格式 toolCalls 数组）
+            const toolCalls = msg.toolCalls || (msg.toolCall ? [msg.toolCall] : null);
+            if (toolCalls && Array.isArray(toolCalls)) {
+                toolCalls.forEach((tc) => {
+                    if (tc.action === 'set_params' && tc._applied === undefined) {
+                        const card = this._createToolCard(tc, idx);
+                        messagesDiv.appendChild(card);
+                    }
+                });
             }
         });
 
@@ -1079,21 +1084,23 @@ export class SceneRenderer {
     }
 
     /**
-     * 解析 AI 回复中的工具调用（```json {"action": "set_params", ...} ```）
-     * @returns {{ text: string, toolCall: object|null }}
+     * 兜底解析：如果 AI 未通过 function calling 返回工具调用，
+     * 但仍在回复中用 ```json 代码块输出了参数修改指令，此方法作为后备。
+     * @deprecated 正式方案通过后端 tool_calls 字段传递，此方法仅作兜底。
+     * @returns {{ text: string, toolCalls: Array|null }}
      */
-    _parseToolCall(reply) {
+    _parseToolCallFallback(reply) {
         const jsonBlockRe = /```json\s*(\{[^`]*"action"\s*:\s*"set_params"[^`]*\})\s*```/s;
         const match = reply.match(jsonBlockRe);
         if (!match) {
-            return { text: reply, toolCall: null };
+            return { text: reply, toolCalls: null };
         }
         try {
             const toolCall = JSON.parse(match[1]);
             const text = reply.replace(match[0], '').trim();
-            return { text, toolCall };
+            return { text, toolCalls: [toolCall] };
         } catch {
-            return { text: reply, toolCall: null };
+            return { text: reply, toolCalls: null };
         }
     }
 
@@ -1188,9 +1195,26 @@ export class SceneRenderer {
             // 同步 UI 滑块
             this._syncParamsToUI();
 
-            // 更新场景
+            // 更新场景（双缓冲，避免旧 3D 对象残留）
             this._lastComputeResult = result.data;
-            this.buildScene(result.data);
+
+            const oldGroup = this.sceneObjects;
+            const newGroup = new THREE.Group();
+            this.threeScene.add(newGroup);
+            this.sceneObjects = newGroup;
+
+            try {
+                this.buildScene(result.data);
+            } catch (buildErr) {
+                this.threeScene.remove(newGroup);
+                this._disposeRecursive(newGroup);
+                this.sceneObjects = oldGroup;
+                throw buildErr;
+            }
+
+            this.threeScene.remove(oldGroup);
+            this._disposeRecursive(oldGroup);
+
             this._updateSolutionInfo(result.data);
             this._updateLecturePanel(result.data);
             this._updateVerifyPanel(result.data);
@@ -1259,11 +1283,20 @@ export class SceneRenderer {
             this._chatHistory.pop();
 
             if (result.success && result.data && result.data.reply) {
-                const parsed = this._parseToolCall(result.data.reply);
+                let reply = result.data.reply || '';
+                let toolCalls = result.data.tool_calls || null;
+
+                // 兜底：如果结构化 tool_calls 为空，尝试正则解析旧格式
+                if (!toolCalls) {
+                    const fallback = this._parseToolCallFallback(reply);
+                    reply = fallback.text;
+                    toolCalls = fallback.toolCalls;
+                }
+
                 this._chatHistory.push({
                     role: 'assistant',
-                    content: parsed.text,
-                    toolCall: parsed.toolCall,  // null 或 {action, reason, params}
+                    content: reply,
+                    toolCalls: toolCalls,  // null 或 [{action, reason, params}, ...]
                 });
             } else {
                 this._chatHistory.push({
