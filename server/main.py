@@ -41,6 +41,7 @@ from server.scenes.ch2_r2_matrix_transpose import Ch2R2MatrixTranspose
 from server.scenes.ch3_r12_elem_row import Ch3R12ElemRow
 from server.scenes.ch3_r13_elem_col import Ch3R13ElemCol
 from server.scenes.ch2_r3_ax_eq_b import Ch2R3AxEqB
+from server.scenes.ch2_r4_cramer import Ch2R4Cramer
 
 SCENE_REGISTRY = {
     "ch0_r0_matrix_columns": Ch0R0MatrixColumns,
@@ -62,6 +63,7 @@ SCENE_REGISTRY = {
     "ch2_r1_matrix_inverse": Ch2R1MatrixInverse,
     "ch2_r2_matrix_transpose": Ch2R2MatrixTranspose,
     "ch2_r3_ax_eq_b": Ch2R3AxEqB,
+    "ch2_r4_cramer": Ch2R4Cramer,
     "ch3_r12_elem_row": Ch3R12ElemRow,
     "ch3_r13_elem_col": Ch3R13ElemCol,
 }

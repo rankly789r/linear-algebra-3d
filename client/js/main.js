@@ -52,6 +52,7 @@ window.panelManager = panelManager;
         <button class="scene-btn" data-scene="ch2_r1_matrix_inverse">2.1 逆矩阵的几何含义</button>
         <button class="scene-btn" data-scene="ch2_r2_matrix_transpose">2.2 转置与对称矩阵</button>
         <button class="scene-btn" data-scene="ch2_r3_ax_eq_b">行视图与列视图</button>
+        <button class="scene-btn" data-scene="ch2_r4_cramer">克拉默法则：解=体积比</button>
 
         <div class="menu-label">第3章 矩阵的秩与线性方程组</div>
         <div class="menu-label" style="font-size:0.7rem;opacity:0.7;margin-top:-6px;">秩的概念</div>
@@ -120,6 +121,7 @@ import { MatrixTransposeRenderer } from './renderers/ch2_r2_matrix_transpose.js'
 import { Ch3R12ElemRowRenderer } from './renderers/ch3_r12_elem_row.js';
 import { Ch3R13ElemColRenderer } from './renderers/ch3_r13_elem_col.js';
 import { Ch2R3AxEqBRenderer } from './renderers/ch2_r3_ax_eq_b.js';
+import { Ch2R4CramerRenderer } from './renderers/ch2_r4_cramer.js';
 
 const SCENE_RENDERERS = {
     'ch0_r0_matrix_columns': MatrixColumnsRenderer,
@@ -141,6 +143,7 @@ const SCENE_RENDERERS = {
     'ch2_r1_matrix_inverse': MatrixInverseRenderer,
     'ch2_r2_matrix_transpose': MatrixTransposeRenderer,
     'ch2_r3_ax_eq_b': Ch2R3AxEqBRenderer,
+    'ch2_r4_cramer': Ch2R4CramerRenderer,
     'ch3_r12_elem_row': Ch3R12ElemRowRenderer,
     'ch3_r13_elem_col': Ch3R13ElemColRenderer,
 };
@@ -848,6 +851,25 @@ function getSceneMeta(sceneName) {
                 { label: '非方阵乘法', type: 'unique', params: { operation:'multiply', A_rows:2,A_cols:3, B_rows:3,B_cols:2, matrix_A:[[1,0,2],[0,3,1]], matrix_B:[[1,0],[2,1],[0,3]] } },
                 { label: '奇异矩阵（不可逆）', type: 'none', params: { operation:'inverse', A_rows:2,A_cols:2, matrix_A:[[1,2],[2,4]] } },
                 { label: '行列式计算', type: 'unique', params: { operation:'determinant', A_rows:3,A_cols:3, matrix_A:[[2,1,0],[1,3,1],[0,1,2]] } },
+            ]
+        },
+        'ch2_r4_cramer': {
+            id: 'ch2_r4_cramer',
+            title: '克拉默法则：解=体积比',
+            description: '克拉默法则的几何：三个平行四边形并排，面积比=解。x₁=面积(A₁)/面积(A), x₂=面积(A₂)/面积(A)。',
+            params: {
+                a11: { label: 'a₁₁', type: 'float', default: 2, min: -5, max: 5, step: 0.1 },
+                a12: { label: 'a₁₂', type: 'float', default: 1, min: -5, max: 5, step: 0.1 },
+                a21: { label: 'a₂₁', type: 'float', default: 1, min: -5, max: 5, step: 0.1 },
+                a22: { label: 'a₂₂', type: 'float', default: 3, min: -5, max: 5, step: 0.1 },
+                b1: { label: 'b₁', type: 'float', default: 4, min: -10, max: 10, step: 0.1 },
+                b2: { label: 'b₂', type: 'float', default: 6, min: -10, max: 10, step: 0.1 },
+            },
+            presets: [
+                { label: '标准案例', type: 'unique', params: { a11:2,a12:1,a21:1,a22:3,b1:4,b2:6 } },
+                { label: 'b 与 a₁ 同方向', type: 'unique', params: { a11:2,a12:1,a21:1,a22:3,b1:4,b2:2 } },
+                { label: '正交基（面积=1）', type: 'unique', params: { a11:1,a12:0,a21:0,a22:1,b1:2,b2:3 } },
+                { label: 'det(A)=0（不可用）', type: 'none', params: { a11:1,a12:2,a21:2,a22:4,b1:3,b2:6 } },
             ]
         },
         'ch2_r3_ax_eq_b': {
