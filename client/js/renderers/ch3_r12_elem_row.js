@@ -145,38 +145,18 @@ export class Ch3R12ElemRowRenderer extends SceneRenderer {
         });
 
         // ─── 动画按钮 + 立即显示最终状态 ─────────────────
-        this._addAnimationButton();
+        this._addAnimControlUI('la_ch3r12_anim_auto');
         this._interpolateToT(1.0);
     }
 
     async _computeAndRender(params, showLoading) {
         await super._computeAndRender(params, showLoading);
-        this._addAnimationButton();
-    }
-
-    _addAnimationButton() {
-        const panel = this._panel('solution');
-        if (!panel) return;
-        const body = panel.body;
-        if (body.querySelector('.anim-replay-btn')) return;
-        if (!this._animData || !this._animData.transforms || this._animData.transforms.length === 0) return;
-
-        const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'margin-bottom:8px;';
-        const btn = document.createElement('button');
-        btn.className = 'anim-replay-btn';
-        btn.textContent = '▶ 演示行变换动画';
-        btn.style.cssText = 'padding:6px 14px;font-size:0.82rem;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;width:100%;';
-        btn.addEventListener('click', () => {
-            this._interpolateToT(0);
-            this._startAnimation();
-        });
-        btnRow.appendChild(btn);
-        body.insertBefore(btnRow, body.firstChild);
+        this._addAnimControlUI('la_ch3r12_anim_auto');
     }
 
     _startAnimation() {
         if (this._animating) return;
+        this._interpolateToT(0);  // 先复位到初始状态
         this._animating = true;
         this._animStartTime = performance.now();
         this._animDuration = 1500;
@@ -221,14 +201,9 @@ export class Ch3R12ElemRowRenderer extends SceneRenderer {
         });
     }
 
-    _updateAnimButton(text, disabled) {
-        const panel = this._panel('solution');
-        if (!panel) return;
-        const btn = panel.body.querySelector('.anim-replay-btn');
-        if (btn) {
-            btn.textContent = text;
-            btn.disabled = disabled;
-            btn.style.opacity = disabled ? '0.6' : '1';
-        }
+    /** 直接跳到最终状态（无动画） */
+    _setToTarget() {
+        this._interpolateToT(1.0);
+        this._updateAnimButton('🔄 重播动画', false);
     }
 }

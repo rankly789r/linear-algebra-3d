@@ -447,6 +447,89 @@ export class SceneRenderer {
         }
     }
 
+    // ─── 动画控制（共享 UI：所有动画场景复用）────────────
+
+    /** 读取动画自动播放开关 */
+    _isAnimAutoEnabled(key) {
+        try { return localStorage.getItem(key) === '1'; }
+        catch { return false; }
+    }
+
+    /** 写入动画自动播放开关 */
+    _setAnimAutoEnabled(key, val) {
+        try { localStorage.setItem(key, val ? '1' : '0'); } catch {}
+    }
+
+    /**
+     * 在 solution 面板中添加动画控制 UI（自动开关 + 手动播放按钮）。
+     * 子类在 _computeAndRender 覆写中调用（super 之后）。
+     * @param {string} storageKey - localStorage key
+     */
+    _addAnimControlUI(storageKey) {
+        const panel = this._panel('solution');
+        if (!panel) return;
+        const body = panel.body;
+
+        // 去重
+        if (body.querySelector('.anim-control-row')) return;
+
+        const row = document.createElement('div');
+        row.className = 'anim-control-row';
+        row.style.cssText = 'margin-bottom:8px;display:flex;gap:6px;';
+
+        // ─── 自动动画开关 ───
+        const autoEnabled = this._isAnimAutoEnabled(storageKey);
+        const toggle = document.createElement('button');
+        toggle.className = 'anim-auto-toggle';
+        toggle.style.cssText =
+            'padding:6px 10px;font-size:0.78rem;' +
+            'background:' + (autoEnabled ? 'var(--accent)' : '#444') + ';' +
+            'color:#fff;border:none;border-radius:4px;cursor:pointer;' +
+            'white-space:nowrap;flex-shrink:0;';
+        toggle.textContent = autoEnabled ? '⟳ 自动动画: 开' : '⟳ 自动动画: 关';
+        toggle.addEventListener('click', () => {
+            const nowOn = !this._isAnimAutoEnabled(storageKey);
+            this._setAnimAutoEnabled(storageKey, nowOn);
+            toggle.textContent = nowOn ? '⟳ 自动动画: 开' : '⟳ 自动动画: 关';
+            toggle.style.background = nowOn ? 'var(--accent)' : '#444';
+            if (nowOn && !this._animating && typeof this._startAnimation === 'function') {
+                this._startAnimation();
+            }
+        });
+        row.appendChild(toggle);
+
+        // ─── 手动播放按钮 ───
+        const playBtn = document.createElement('button');
+        playBtn.className = 'anim-replay-btn';
+        playBtn.textContent = '▶ 演示动画';
+        playBtn.style.cssText =
+            'padding:6px 14px;font-size:0.82rem;' +
+            'background:var(--accent);color:#fff;border:none;' +
+            'border-radius:4px;cursor:pointer;flex:1;';
+        playBtn.addEventListener('click', () => {
+            if (typeof this._startAnimation === 'function') this._startAnimation();
+        });
+        row.appendChild(playBtn);
+
+        body.insertBefore(row, body.firstChild);
+    }
+
+    /**
+     * 更新动画播放按钮的文字和状态。
+     * @param {string} text - 按钮文字
+     * @param {boolean} disabled - 是否禁用
+     */
+    _updateAnimButton(text, disabled) {
+        const panel = this._panel('solution');
+        if (!panel) return;
+        const btn = panel.body.querySelector('.anim-replay-btn');
+        if (btn) {
+            btn.textContent = text;
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? '0.6' : '1';
+        }
+    }
+
     // ─── 讲解面板（子面板：基础讲解 + AI 答疑）───────────
 
     _updateLecturePanel(data) {

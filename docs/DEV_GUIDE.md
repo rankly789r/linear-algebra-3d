@@ -256,6 +256,7 @@ updateMatrixDisplay(panel, matrices);
 - AI API Key → `localStorage` key: `la_deepseek_api_key`
 - 讲解子面板折叠 → `localStorage` keys: `la_lecture_basic_collapsed`, `la_lecture_ai_collapsed`
 - 讲解子面板排序 → `localStorage` key: `la_lecture_subpanel_order`
+- 动画自动播放开关 → `localStorage` keys: `la_ch*_anim_auto`（10个动画场景，由 `scene-base.js` 统一管理）
 - 重置：浏览器控制台执行 `localStorage.clear(); location.reload();`
 
 ### 面板显示管理

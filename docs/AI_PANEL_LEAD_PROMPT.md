@@ -84,8 +84,7 @@ document.querySelector('.panel-body').innerHTML = '...';
 | `la_lecture_basic_collapsed` | `'1'`/`'0'` 基础讲解折叠 | `scene-base.js` `_updateLecturePanel()` |
 | `la_lecture_ai_collapsed` | `'1'`/`'0'` AI 答疑折叠 | `scene-base.js` `_updateLecturePanel()` |
 | `la_lecture_subpanel_order` | `['basic','ai']` 或 `['ai','basic']` | `scene-base.js` `_updateLecturePanel()` |
-| `la_ch0r0_anim_auto` | `'1'`/`'0'` ch0_r0 自动动画开关 | `ch0_r0_matrix_columns.js` |
-| `la_ch0r1_anim_auto` | `'1'`/`'0'` ch0_r1 自动动画开关 | `ch0_r1_column_decompose.js` |
+| `la_*_anim_auto` | `'1'`/`'0'` 各场景自动动画开关（10个场景） | `scene-base.js` `_isAnimAutoEnabled()` |
 
 **重置方法**：控制台 `localStorage.clear(); location.reload();`
 

@@ -190,7 +190,7 @@ export class ColumnDecomposeRenderer extends SceneRenderer {
         this.sceneObjects.add(dot);
 
         // ─── 根据开关状态决定是否自动播放 ────────────────
-        if (this._isAnimAutoEnabled()) {
+        if (this._isAnimAutoEnabled('la_ch0r1_anim_auto')) {
             this._animTimeout = setTimeout(() => this._startAnimation(), 350);
         } else {
             this._setToTarget();
@@ -203,81 +203,17 @@ export class ColumnDecomposeRenderer extends SceneRenderer {
 
     async _computeAndRender(params, showLoading) {
         await super._computeAndRender(params, showLoading);
-        this._addAnimationUI();
+        this._addAnimControlUI('la_ch0r1_anim_auto');
     }
 
     // ═══════════════════════════════════════════════════════
     // 动画系统
     // ═══════════════════════════════════════════════════════
 
-    /** localStorage key */
-    static get AUTO_ANIM_KEY() { return 'la_ch0r1_anim_auto'; }
-
-    /** 读取自动动画开关状态 */
-    _isAnimAutoEnabled() {
-        return localStorage.getItem(ColumnDecomposeRenderer.AUTO_ANIM_KEY) === '1';
-    }
-
-    /** 写入自动动画开关状态 */
-    _setAnimAutoEnabled(val) {
-        localStorage.setItem(ColumnDecomposeRenderer.AUTO_ANIM_KEY, val ? '1' : '0');
-    }
-
-    /** 在 solution 面板中添加动画控制 UI（开关 + 播放按钮） */
-    _addAnimationUI() {
-        const panel = this._panel('solution');
-        if (!panel) return;
-        const body = panel.body;
-
-        // 去重
-        if (body.querySelector('.anim-control-row')) return;
-
-        const row = document.createElement('div');
-        row.className = 'anim-control-row';
-        row.style.cssText = 'margin-bottom:8px;display:flex;gap:6px;';
-
-        // ─── 自动动画开关 ───
-        const autoEnabled = this._isAnimAutoEnabled();
-        const toggle = document.createElement('button');
-        toggle.className = 'anim-auto-toggle';
-        toggle.style.cssText =
-            'padding:6px 10px;font-size:0.78rem;' +
-            'background:' + (autoEnabled ? 'var(--accent)' : '#444') + ';' +
-            'color:#fff;border:none;border-radius:4px;cursor:pointer;' +
-            'white-space:nowrap;flex-shrink:0;';
-        toggle.textContent = autoEnabled ? '⟳ 自动动画: 开' : '⟳ 自动动画: 关';
-        toggle.addEventListener('click', () => {
-            const nowOn = !this._isAnimAutoEnabled();
-            this._setAnimAutoEnabled(nowOn);
-            toggle.textContent = nowOn ? '⟳ 自动动画: 开' : '⟳ 自动动画: 关';
-            toggle.style.background = nowOn ? 'var(--accent)' : '#444';
-            if (nowOn && !this._animating) {
-                this._interpolateToT(0);
-                this._startAnimation();
-            }
-        });
-        row.appendChild(toggle);
-
-        // ─── 手动播放按钮 ───
-        const playBtn = document.createElement('button');
-        playBtn.className = 'anim-replay-btn';
-        playBtn.textContent = '▶ 演示动画';
-        playBtn.style.cssText =
-            'padding:6px 14px;font-size:0.82rem;' +
-            'background:var(--accent);color:#fff;border:none;' +
-            'border-radius:4px;cursor:pointer;flex:1;';
-        playBtn.addEventListener('click', () => {
-            this._interpolateToT(0);
-            this._startAnimation();
-        });
-        row.appendChild(playBtn);
-
-        body.insertBefore(row, body.firstChild);
-    }
-
     /** 开始动画：从恒等变换插值到目标 */
     _startAnimation() {
         if (this._animating) return;
+        this._interpolateToT(0);  // 先复位到初始状态
         this._animating = true;
         this._animStartTime = performance.now();
         this._animDuration = 1600;  // 1.6 秒
@@ -361,17 +297,6 @@ export class ColumnDecomposeRenderer extends SceneRenderer {
     _setToTarget() {
         this._interpolateToT(1.0);
         this._updateAnimButton('🔄 重播动画', false);
-    }
-
-    _updateAnimButton(text, disabled) {
-        const panel = this._panel('solution');
-        if (!panel) return;
-        const btn = panel.body.querySelector('.anim-replay-btn');
-        if (btn) {
-            btn.textContent = text;
-            btn.disabled = disabled;
-            btn.style.opacity = disabled ? '0.6' : '1';
-        }
     }
 
     // ═══════════════════════════════════════════════════════
