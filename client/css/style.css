@@ -180,37 +180,37 @@ body {
     z-index: 5;
 }
 
-/* ── 面板显示管理（按钮在场景标题栏右上角）── */
+/* ── 面板显示管理（全局悬浮，不受列消失影响）── */
 #panel-vis-toggle {
     position: absolute;
-    top: 8px;
-    right: 12px;
+    top: 10px;
+    right: 10px;
     z-index: 100;
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     padding: 0;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: 1px solid transparent;
+    background: rgba(18, 18, 31, 0.7);
+    border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-muted);
     cursor: pointer;
+    backdrop-filter: blur(6px);
     transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
 #panel-vis-toggle:hover {
     color: var(--accent);
-    border-color: var(--border);
-    background: var(--bg-secondary);
+    border-color: var(--accent);
 }
 
 .panel-vis-menu {
     position: absolute;
-    top: 38px;
-    right: 4px;
+    top: 44px;
+    right: 10px;
     z-index: 101;
     min-width: 190px;
     background: rgba(18, 18, 31, 0.95);
@@ -297,13 +297,15 @@ body {
     display: none !important;
 }
 
-/* 拖拽进行中：空列露一条窄边，提示可拖放 */
+/* 拖拽进行中：空列显示为可见的拖放接收区 */
 body.is-dragging #left-column.no-panels,
 body.is-dragging #right-column.no-panels {
-    width: 10px !important;
-    min-width: 10px !important;
+    width: 40px !important;
+    min-width: 40px !important;
     overflow: visible;
-    background: rgba(76, 201, 240, 0.10);
+    transition: none; /* 立即出现，不等 0.2s 过渡 */
+    background: rgba(76, 201, 240, 0.06);
+    border: 1px dashed rgba(76, 201, 240, 0.2);
 }
 
 /* 拖拽悬停在空列上：展开以显示 "拖拽面板到此处" */
