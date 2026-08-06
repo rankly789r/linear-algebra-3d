@@ -47,11 +47,46 @@
         <!-- 提示文字 -->
         <div class="viewer-hint">🖱 拖拽旋转 | 滚轮缩放 | 右键平移</div>
 
-        <!-- 面板显示管理（全局悬浮，不随列消失） -->
-        <div id="panel-vis-toggle" title="管理面板显示">👁</div>
-        <div id="panel-vis-menu" class="panel-vis-menu" style="display:none;">
-            <div class="panel-vis-title">显示/隐藏面板</div>
-            <div id="panel-vis-list"></div>
+        <!-- 设置菜单（全局悬浮，不随列消失） -->
+        <div id="settings-toggle" title="设置">⚙</div>
+        <div id="settings-menu" class="settings-menu" style="display:none;">
+            <div class="settings-menu-header">⚙ 设置</div>
+
+            <!-- 一级：面板显示 -->
+            <div class="settings-l1" data-section="panel-vis">
+                <span class="settings-arrow">▶</span>
+                <span class="settings-l1-label">面板显示</span>
+            </div>
+            <div class="settings-l2-container" data-section="panel-vis" style="display:none;">
+                <div id="settings-panel-list"></div>
+            </div>
+
+            <!-- 一级：渲染距离 -->
+            <div class="settings-l1" data-section="render-dist">
+                <span class="settings-arrow">▶</span>
+                <span class="settings-l1-label">3D 网格渲染距离</span>
+            </div>
+            <div class="settings-l2-container" data-section="render-dist" style="display:none;">
+                <div id="settings-grid-body"></div>
+            </div>
+
+            <!-- 一级：参数范围（当前场景） -->
+            <div class="settings-l1" data-section="param-ranges">
+                <span class="settings-arrow">▶</span>
+                <span class="settings-l1-label">滑块区间（当前场景）</span>
+            </div>
+            <div class="settings-l2-container" data-section="param-ranges" style="display:none;">
+                <div id="settings-param-ranges-body"></div>
+            </div>
+
+            <!-- 一级：颜色主题 -->
+            <div class="settings-l1" data-section="color-theme">
+                <span class="settings-arrow">▶</span>
+                <span class="settings-l1-label">颜色主题</span>
+            </div>
+            <div class="settings-l2-container" data-section="color-theme" style="display:none;">
+                <div id="settings-colors-body"></div>
+            </div>
         </div>
 
         <div id="loading-overlay" style="display:none;">

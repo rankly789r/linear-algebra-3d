@@ -48,6 +48,10 @@
 | `la_lecture_ai_collapsed` | 讲解子面板「AI 答疑」折叠状态 `'1'`/`'0'` |
 | `la_lecture_subpanel_order` | 讲解子面板排列顺序 `['basic','ai']` 或 `['ai','basic']` |
 | `la_*_anim_auto` | 各场景自动动画开关 `'1'`/`'0'`（10 个动画场景，由 `scene-base.js` 管理） |
+| `la_grid_settings` | 3D 网格大小和密度 `{size, divisions}`（由 `main.js` 设置菜单管理） |
+| `la_color_theme` | 颜色主题覆盖 `{accent, bgPrimary, bgSecondary, bgNav, green, red}`（由 `main.js` 设置菜单管理） |
+| `la_param_ranges` | 场景参数自定义范围 `{sceneId: {paramKey: {min, max}}}`（由 `main.js` 设置菜单 + `scene-base.js` 共同管理） |
+| `la_settings_collapsed` | 设置菜单各分组折叠状态 `{panel-vis: bool, ...}` |
 
 重置布局：浏览器控制台执行 `localStorage.clear(); location.reload();`
 

@@ -207,15 +207,14 @@ let currentSceneName = null;
     `;
 })();
 
-// ─── 面板显示管理菜单 ────────────────────────────────────
+// ─── 设置菜单（全局悬浮，整合面板显示+网格+参数范围+颜色）──
 
-(function initPanelVisibilityMenu() {
-    const toggleBtn = document.getElementById('panel-vis-toggle');
-    const menu = document.getElementById('panel-vis-menu');
-    const list = document.getElementById('panel-vis-list');
-    if (!toggleBtn || !menu || !list) return;
+(function initSettingsMenu() {
+    const toggleBtn = document.getElementById('settings-toggle');
+    const menu = document.getElementById('settings-menu');
+    if (!toggleBtn || !menu) return;
 
-    // 可管理的面板列表（id → 显示名）
+    // ── 可管理的面板列表 ──
     const panelDefs = [
         { id: 'scenenav', label: '📐 场景目录' },
         { id: 'presets',  label: '📌 预设情形' },
@@ -227,17 +226,20 @@ let currentSceneName = null;
         { id: 'matrix',   label: '📋 矩阵数据' },
     ];
 
-    // 恢复保存的状态
-    const saved = _loadPanelVisibility();
+    // ═══════════════════════════════════════════════════════
+    // 1. 面板可见性子菜单
+    // ═══════════════════════════════════════════════════════
 
-    // 构建菜单项
+    const panelList = document.getElementById('settings-panel-list');
+    const savedVis = _loadPanelVisibility();
+
     panelDefs.forEach(def => {
         const row = document.createElement('div');
-        row.className = 'panel-vis-item';
+        row.className = 'settings-panel-item';
 
         const cb = document.createElement('input');
         cb.type = 'checkbox';
-        cb.checked = saved[def.id] !== false; // 默认全部显示
+        cb.checked = savedVis[def.id] !== false;
         cb.dataset.panelId = def.id;
 
         const label = document.createElement('label');
@@ -251,41 +253,20 @@ let currentSceneName = null;
         row.appendChild(cb);
         row.appendChild(label);
         row.addEventListener('click', (e) => {
-            if (e.target !== cb) {
-                cb.checked = !cb.checked;
-                cb.dispatchEvent(new Event('change'));
-            }
+            if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
         });
-        list.appendChild(row);
-
-        // 应用初始状态
+        panelList.appendChild(row);
         _applyPanelVisibility(def.id, cb.checked);
     });
 
-    // 点击按钮切换菜单显示
-    toggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-    });
-
-    // 点击空白处关闭菜单
-    document.addEventListener('click', (e) => {
-        if (!menu.contains(e.target) && e.target !== toggleBtn) {
-            menu.style.display = 'none';
-        }
-    });
-
     function _loadPanelVisibility() {
-        try {
-            return JSON.parse(localStorage.getItem('la_panel_visibility') || '{}');
-        } catch {
-            return {};
-        }
+        try { return JSON.parse(localStorage.getItem('la_panel_visibility') || '{}'); }
+        catch { return {}; }
     }
 
     function _savePanelVisibility() {
         const state = {};
-        list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        panelList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
             state[cb.dataset.panelId] = cb.checked;
         });
         localStorage.setItem('la_panel_visibility', JSON.stringify(state));
@@ -295,12 +276,348 @@ let currentSceneName = null;
         const panel = panelManager.getPanel(panelId);
         if (!panel) return;
         panel._userHidden = !visible;
-        if (visible) {
-            panel.show();
-        } else {
-            panel.hide();
+        visible ? panel.show() : panel.hide();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 2. 网格渲染距离子菜单
+    // ═══════════════════════════════════════════════════════
+
+    const gridBody = document.getElementById('settings-grid-body');
+    (function buildGridUI() {
+        const gs = _loadGridSettings();
+
+        function makeRow(label, key, min, max) {
+            const row = document.createElement('div');
+            row.className = 'settings-grid-row';
+
+            const lbl = document.createElement('label');
+            lbl.textContent = label;
+
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = min; slider.max = max; slider.step = '1';
+            slider.value = gs[key];
+
+            const valSpan = document.createElement('span');
+            valSpan.className = 'settings-grid-value';
+            valSpan.textContent = gs[key];
+
+            slider.addEventListener('input', () => {
+                const v = parseInt(slider.value);
+                valSpan.textContent = v;
+                const size = key === 'size' ? v : parseInt(gridBody.querySelector('input[type="range"]').value);
+                const divisions = key === 'divisions' ? v : parseInt(gridBody.querySelectorAll('input[type="range"]')[1].value);
+                updateGridRenderer(size, divisions);
+            });
+
+            row.appendChild(lbl);
+            row.appendChild(slider);
+            row.appendChild(valSpan);
+            return row;
+        }
+
+        gridBody.appendChild(makeRow('范围', 'size', 2, 30));
+        gridBody.appendChild(makeRow('密度', 'divisions', 2, 40));
+    })();
+
+    // ═══════════════════════════════════════════════════════
+    // 3. 参数范围子菜单（随场景动态刷新）
+    // ═══════════════════════════════════════════════════════
+
+    const paramRangesBody = document.getElementById('settings-param-ranges-body');
+
+    function _loadParamRanges() {
+        try { return JSON.parse(localStorage.getItem('la_param_ranges') || '{}'); }
+        catch { return {}; }
+    }
+
+    function _saveParamRanges(ranges) {
+        try { localStorage.setItem('la_param_ranges', JSON.stringify(ranges)); }
+        catch {}
+    }
+
+    function refreshParamRangeUI() {
+        paramRangesBody.innerHTML = '';
+        if (!currentSceneName) {
+            paramRangesBody.innerHTML = '<div class="settings-panel-item" style="color:var(--text-muted);font-style:italic;">请先选择一个场景</div>';
+            return;
+        }
+
+        const meta = getSceneMeta(currentSceneName);
+        if (!meta || !meta.params) return;
+
+        const allRanges = _loadParamRanges();
+        const sceneRanges = allRanges[currentSceneName] || {};
+        let hasParams = false;
+
+        for (const [key, def] of Object.entries(meta.params)) {
+            if (def.type !== 'float' && def.type !== 'int') continue;
+            hasParams = true;
+
+            const row = document.createElement('div');
+            row.className = 'settings-paramrange-row';
+
+            const label = document.createElement('span');
+            label.className = 'settings-paramrange-label';
+            label.textContent = def.label;
+            label.title = def.label;
+
+            const curRange = sceneRanges[key] || {};
+            const curMin = curRange.min ?? def.min;
+            const curMax = curRange.max ?? def.max;
+
+            const minInput = document.createElement('input');
+            minInput.type = 'number';
+            minInput.className = 'settings-paramrange-input';
+            minInput.value = curMin;
+            minInput.step = def.step || 0.1;
+
+            const sep = document.createElement('span');
+            sep.className = 'settings-paramrange-sep';
+            sep.textContent = '~';
+
+            const maxInput = document.createElement('input');
+            maxInput.type = 'number';
+            maxInput.className = 'settings-paramrange-input';
+            maxInput.value = curMax;
+            maxInput.step = def.step || 0.1;
+
+            const applyChange = () => {
+                const allRanges = _loadParamRanges();
+                if (!allRanges[currentSceneName]) allRanges[currentSceneName] = {};
+                allRanges[currentSceneName][key] = {
+                    min: parseFloat(minInput.value) ?? def.min,
+                    max: parseFloat(maxInput.value) ?? def.max,
+                };
+                _saveParamRanges(allRanges);
+                // 重建当前场景的参数面板以应用新范围
+                if (currentSceneRenderer && typeof currentSceneRenderer._buildParams === 'function') {
+                    currentSceneRenderer._buildParams();
+                }
+            };
+
+            minInput.addEventListener('change', applyChange);
+            maxInput.addEventListener('change', applyChange);
+
+            row.appendChild(label);
+            row.appendChild(minInput);
+            row.appendChild(sep);
+            row.appendChild(maxInput);
+            paramRangesBody.appendChild(row);
+        }
+
+        if (!hasParams) {
+            paramRangesBody.innerHTML = '<div class="settings-panel-item" style="color:var(--text-muted);font-style:italic;">当前场景无参数</div>';
         }
     }
+
+    // 暴露给 switchScene 调用
+    window._refreshParamRangeUI = refreshParamRangeUI;
+
+    // ═══════════════════════════════════════════════════════
+    // 4. 颜色主题子菜单
+    // ═══════════════════════════════════════════════════════
+
+    const colorsBody = document.getElementById('settings-colors-body');
+
+    const colorDefs = [
+        { varName: '--accent',       label: '主题色',    cssProp: 'accent' },
+        { varName: '--bg-primary',   label: '主背景',    cssProp: 'bgPrimary',   isBg: true },
+        { varName: '--bg-secondary', label: '次背景',    cssProp: 'bgSecondary', isBg: true },
+        { varName: '--bg-nav',       label: '导航栏背景', cssProp: 'bgNav',       isBg: true },
+        { varName: '--green',        label: '绿色（验证通过）', cssProp: 'green' },
+        { varName: '--red',          label: '红色（验证失败）', cssProp: 'red' },
+    ];
+
+    function _loadColorTheme() {
+        const defaults = {};
+        colorDefs.forEach(d => {
+            const styleVal = getComputedStyle(document.documentElement).getPropertyValue(d.varName).trim();
+            defaults[d.cssProp] = styleVal;
+        });
+        try {
+            const saved = JSON.parse(localStorage.getItem('la_color_theme') || '{}');
+            return { ...defaults, ...saved };
+        } catch { return defaults; }
+    }
+
+    function _saveColorTheme(colors) {
+        try { localStorage.setItem('la_color_theme', JSON.stringify(colors)); } catch {}
+    }
+
+    function _applyColors(colors) {
+        colorDefs.forEach(d => {
+            const val = colors[d.cssProp];
+            if (val) document.documentElement.style.setProperty(d.varName, val);
+        });
+        // 同步 Three.js 背景色
+        const bgColor = colors.bgPrimary;
+        if (bgColor) {
+            scene.background = new THREE.Color(bgColor);
+            scene.fog = new THREE.Fog(bgColor, 12, 30);
+        }
+    }
+
+    // 恢复保存的颜色 — CSS 变量立即生效（背景色延迟到 scene 初始化后）
+    const savedColors = _loadColorTheme();
+    colorDefs.forEach(d => {
+        const val = savedColors[d.cssProp];
+        if (val) document.documentElement.style.setProperty(d.varName, val);
+    });
+
+    // 注册延迟回调：Three.js 场景初始化后同步背景色
+    window._applySavedThemeBg = function() {
+        const savedColors = _loadColorTheme();
+        const bgColor = savedColors.bgPrimary;
+        if (bgColor) {
+            scene.background = new THREE.Color(bgColor);
+            scene.fog = new THREE.Fog(bgColor, 12, 30);
+        }
+    };
+
+    colorDefs.forEach(d => {
+        const row = document.createElement('div');
+        row.className = 'settings-color-row';
+
+        const label = document.createElement('label');
+        label.textContent = d.label;
+
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = savedColors[d.cssProp] || '';
+
+        const hexSpan = document.createElement('span');
+        hexSpan.className = 'color-hex';
+        hexSpan.textContent = savedColors[d.cssProp] || '';
+
+        colorInput.addEventListener('input', () => {
+            hexSpan.textContent = colorInput.value;
+            const all = _loadColorTheme();
+            all[d.cssProp] = colorInput.value;
+            _saveColorTheme(all);
+            _applyColors(all);
+        });
+
+        row.appendChild(label);
+        row.appendChild(colorInput);
+        row.appendChild(hexSpan);
+        colorsBody.appendChild(row);
+    });
+
+    // ═══════════════════════════════════════════════════════
+    // 5. 重置按钮
+    // ═══════════════════════════════════════════════════════
+
+    const resetRow = document.createElement('div');
+    resetRow.className = 'settings-reset-row';
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'settings-reset-btn';
+    resetBtn.textContent = '恢复默认设置';
+    resetBtn.addEventListener('click', () => {
+        // 重置网格
+        updateGridRenderer(10, 10);
+        gridBody.querySelectorAll('input[type="range"]')[0].value = 10;
+        gridBody.querySelectorAll('.settings-grid-value')[0].textContent = '10';
+        gridBody.querySelectorAll('input[type="range"]')[1].value = 10;
+        gridBody.querySelectorAll('.settings-grid-value')[1].textContent = '10';
+
+        // 重置颜色
+        const defaultColors = {};
+        colorDefs.forEach(d => {
+            defaultColors[d.cssProp] = '';
+        });
+        _saveColorTheme(defaultColors);
+        // 用 CSS 默认值覆盖
+        document.documentElement.style.setProperty('--accent', '#4cc9f0');
+        document.documentElement.style.setProperty('--bg-primary', '#1a1a2e');
+        document.documentElement.style.setProperty('--bg-secondary', '#16213e');
+        document.documentElement.style.setProperty('--bg-nav', '#10101c');
+        document.documentElement.style.setProperty('--green', '#06d6a0');
+        document.documentElement.style.setProperty('--red', '#ef476f');
+        scene.background = new THREE.Color('#1a1a2e');
+        scene.fog = new THREE.Fog('#1a1a2e', 12, 30);
+        // 更新颜色选择器
+        colorsBody.querySelectorAll('input[type="color"]').forEach((inp, i) => {
+            const defHex = ['#4cc9f0','#1a1a2e','#16213e','#10101c','#06d6a0','#ef476f'][i];
+            inp.value = defHex;
+            colorsBody.querySelectorAll('.color-hex')[i].textContent = defHex;
+        });
+
+        // 重置参数范围
+        _saveParamRanges({});
+        refreshParamRangeUI();
+
+        // 重置面板可见性（全部显示）
+        _savePanelVisibility();
+        panelList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+            _applyPanelVisibility(cb.dataset.panelId, true);
+        });
+    });
+    resetRow.appendChild(resetBtn);
+    menu.appendChild(resetRow);
+
+    // ═══════════════════════════════════════════════════════
+    // 6. 菜单交互：折叠/展开 + 打开/关闭
+    // ═══════════════════════════════════════════════════════
+
+    // 恢复折叠状态
+    const savedCollapsed = (() => {
+        try { return JSON.parse(localStorage.getItem('la_settings_collapsed') || '{}'); }
+        catch { return {}; }
+    })();
+
+    // 初始折叠状态应用（默认全部折叠）
+    menu.querySelectorAll('.settings-l1').forEach(l1 => {
+        const section = l1.dataset.section;
+        if (savedCollapsed[section] === false) {
+            // 展开
+            const container = menu.querySelector(`.settings-l2-container[data-section="${section}"]`);
+            if (container) container.style.display = 'block';
+            l1.classList.add('expanded');
+        }
+    });
+
+    // 一级菜单折叠/展开（事件代理）
+    menu.addEventListener('click', (e) => {
+        const l1 = e.target.closest('.settings-l1');
+        if (!l1) return;
+        const section = l1.dataset.section;
+        const container = menu.querySelector(`.settings-l2-container[data-section="${section}"]`);
+        if (!container) return;
+
+        const isExpanded = container.style.display !== 'none';
+        if (isExpanded) {
+            container.style.display = 'none';
+            l1.classList.remove('expanded');
+        } else {
+            container.style.display = 'block';
+            l1.classList.add('expanded');
+        }
+        // 持久化折叠状态
+        const collapsed = {};
+        menu.querySelectorAll('.settings-l2-container').forEach(c => {
+            collapsed[c.dataset.section] = c.style.display === 'none';
+        });
+        try { localStorage.setItem('la_settings_collapsed', JSON.stringify(collapsed)); } catch {}
+    });
+
+    // 点击按钮切换菜单显示
+    toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isVisible = menu.style.display !== 'none';
+        menu.style.display = isVisible ? 'none' : 'block';
+        // 打开菜单时刷新参数范围 UI（因为可能切换了场景）
+        if (!isVisible) refreshParamRangeUI();
+    });
+
+    // 点击空白处关闭菜单
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target) && e.target !== toggleBtn) {
+            menu.style.display = 'none';
+        }
+    });
 })();
 
 // ─── 场景渲染器注册 ──────────────────────────────────────
@@ -398,6 +715,9 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a2e);
 scene.fog = new THREE.Fog(0x1a1a2e, 12, 30);
 
+// 应用用户保存的颜色主题背景（由 initSettingsMenu 注册）
+window._applySavedThemeBg?.();
+
 const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 50);
 camera.up.set(0, 0, 1);  // Z轴向上
 camera.position.set(7, -7, 5);
@@ -430,11 +750,45 @@ scene.add(axisGroup);
 // XY 参考网格（Z轴向上，地面为XY平面）
 // renderOrder=-1 + depthWrite=false：网格先渲染但不写入深度缓冲，
 // 避免与用户绘制的图形产生 z-fighting 闪烁
-const grid = new THREE.GridHelper(10, 10, 0x333355, 0x222240);
-grid.rotation.x = -Math.PI / 2;
-grid.renderOrder = -1;
-grid.material.depthWrite = false;
-scene.add(grid);
+let gridSize = _loadGridSettings().size;
+let gridDivisions = _loadGridSettings().divisions;
+let gridHelper = new THREE.GridHelper(gridSize, gridDivisions, 0x333355, 0x222240);
+gridHelper.rotation.x = -Math.PI / 2;
+gridHelper.renderOrder = -1;
+gridHelper.material.depthWrite = false;
+scene.add(gridHelper);
+
+function _loadGridSettings() {
+    const defaults = { size: 10, divisions: 10 };
+    try {
+        const saved = JSON.parse(localStorage.getItem('la_grid_settings') || '{}');
+        return { ...defaults, ...saved };
+    } catch { return defaults; }
+}
+
+function _saveGridSettings(size, divisions) {
+    try { localStorage.setItem('la_grid_settings', JSON.stringify({ size, divisions })); } catch {}
+}
+
+function updateGridRenderer(size, divisions) {
+    if (gridHelper) {
+        scene.remove(gridHelper);
+        gridHelper.geometry.dispose();
+        if (Array.isArray(gridHelper.material)) {
+            gridHelper.material.forEach(m => m.dispose());
+        } else if (gridHelper.material) {
+            gridHelper.material.dispose();
+        }
+    }
+    gridSize = size;
+    gridDivisions = divisions;
+    gridHelper = new THREE.GridHelper(size, divisions, 0x333355, 0x222240);
+    gridHelper.rotation.x = -Math.PI / 2;
+    gridHelper.renderOrder = -1;
+    gridHelper.material.depthWrite = false;
+    scene.add(gridHelper);
+    _saveGridSettings(size, divisions);
+}
 
 const originDot = new THREE.Mesh(
     new THREE.SphereGeometry(0.08, 16, 16),
@@ -717,6 +1071,9 @@ async function switchScene(sceneName) {
         await currentSceneRenderer.initialRender();
 
         localStorage.setItem('la_current_scene', sceneName);
+
+        // 刷新设置菜单中的参数范围 UI
+        window._refreshParamRangeUI?.();
 
     } catch (err) {
         console.error('场景切换失败:', err);

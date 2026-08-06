@@ -292,11 +292,22 @@ export class SceneRenderer {
                 }
                 inputRow.appendChild(grid);
             } else {
-                // 滑块
+                // 滑块 — 读取用户自定义参数范围
+                let paramMin = def.min;
+                let paramMax = def.max;
+                try {
+                    const ranges = JSON.parse(localStorage.getItem('la_param_ranges') || '{}');
+                    const sceneRanges = ranges[this.meta.id];
+                    if (sceneRanges && sceneRanges[key]) {
+                        paramMin = sceneRanges[key].min ?? def.min;
+                        paramMax = sceneRanges[key].max ?? def.max;
+                    }
+                } catch { /* ignore */ }
+
                 const slider = document.createElement('input');
                 slider.type = 'range';
-                slider.min = def.min;
-                slider.max = def.max;
+                slider.min = paramMin;
+                slider.max = paramMax;
                 slider.step = def.step || 0.1;
                 slider.value = this.params[key] ?? def.default;
                 slider.dataset.paramKey = key;
@@ -329,8 +340,8 @@ export class SceneRenderer {
                 // 数值输入
                 const numInput = document.createElement('input');
                 numInput.type = 'number';
-                numInput.min = def.min;
-                numInput.max = def.max;
+                numInput.min = paramMin;
+                numInput.max = paramMax;
                 numInput.step = def.step || 0.1;
                 numInput.value = this.params[key] ?? def.default;
                 numInput.addEventListener('input', () => {

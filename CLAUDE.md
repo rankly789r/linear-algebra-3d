@@ -142,6 +142,9 @@ Response: { success, data: { reply: "..." } }
 ⚠️ **关键警告**：禁用 Edge 鼠标手势；禁止 VSCode Simple Browser（GPU 花屏）。
 
 ### 新增场景（5 步速查）
+
+> 详细代码模板和风格规范见 [docs/AI_SCENE_DEV_GUIDE.md](docs/AI_SCENE_DEV_GUIDE.md)（AI 审计员撰写，提取了全部 24 个场景的共性模式）。
+
 1. `server/scenes/chX_rY_name.py` — 继承 BaseScene，实现 `get_meta()` + `compute()`
 2. `client/js/renderers/chX_rY_name.js` — 继承 SceneRenderer，实现 `buildScene()`
 3. `server/main.py` — import + `SCENE_REGISTRY` 注册
@@ -180,7 +183,8 @@ Response: { success, data: { reply: "..." } }
 
 ### 基础设施
 - [ ] 向量拖拽交互（直接拖拽箭头端点修改向量）
-- [ ] 将动画工厂函数提取到 `draw-utils.js`（当前各场景各有一份拷贝）
+- [x] 将动画工厂函数提取到 `draw-utils.js`~~（当前各场景各有一份拷贝）~~ ✅ 已完成（c378041）
+- [x] 将动画控制 UI 提取到 `scene-base.js`（`_addAnimControlUI` 等） ✅ 已完成（c05b012）
 - [ ] 场景标题栏菜单按钮：右上角 `#scene-info-header` 旁加一个图标按钮，点击弹出下拉菜单（主题切换、捐赠码等）
 
 ## 十、用户偏好
@@ -196,7 +200,7 @@ Response: { success, data: { reply: "..." } }
 |------|--------|------|
 | 🔍 AI 审计员 | [docs/audit/AI_AUDITOR_PROMPT.md](docs/audit/AI_AUDITOR_PROMPT.md) | 代码审查、安全审计、质量把关 |
 | 🖥️ AI 面板负责人 | [docs/AI_PANEL_LEAD_PROMPT.md](docs/AI_PANEL_LEAD_PROMPT.md) | 所有 UI/面板/CSS/持久化 |
-| 🎓 AI 场景开发者 | *（待创建）* | 新增/修改数学场景 |
+| 🎓 AI 场景开发者 | [docs/AI_SCENE_DEV_GUIDE.md](docs/AI_SCENE_DEV_GUIDE.md) | 新增/修改数学场景 |
 
 > 修改此项目前，必须阅读：
 > - **架构约束与已知陷阱** → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（第六节「已知问题与注意事项」）

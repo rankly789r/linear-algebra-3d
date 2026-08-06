@@ -257,13 +257,22 @@ updateMatrixDisplay(panel, matrices);
 - 讲解子面板折叠 → `localStorage` keys: `la_lecture_basic_collapsed`, `la_lecture_ai_collapsed`
 - 讲解子面板排序 → `localStorage` key: `la_lecture_subpanel_order`
 - 动画自动播放开关 → `localStorage` keys: `la_ch*_anim_auto`（10个动画场景，由 `scene-base.js` 统一管理）
+- 网格设置 → `localStorage` key: `la_grid_settings`
+- 颜色主题 → `localStorage` key: `la_color_theme`
+- 参数自定义范围 → `localStorage` key: `la_param_ranges`
+- 设置菜单折叠状态 → `localStorage` key: `la_settings_collapsed`
 - 重置：浏览器控制台执行 `localStorage.clear(); location.reload();`
 
-### 面板显示管理
+### 设置菜单
 
-3D 视图左上角有「👁 面板」按钮，点击弹出菜单，可勾选/取消各面板的显示状态。
-状态自动保存到 `la_panel_visibility`，刷新后保持。
-实现位于 `main.js` 的 `initPanelVisibilityMenu()` IIFE 中。
+3D 视图右上角有「⚙」设置按钮，点击弹出多级菜单，包含四个分组：
+- **面板显示**：勾选/取消各面板的显示状态（二级 checkbox）
+- **3D 网格渲染距离**：调节网格范围（2-30）和密度（2-40）
+- **滑块区间（当前场景）**：自定义当前场景各参数的 min/max
+- **颜色主题**：修改 6 个关键 CSS 颜色变量（accent、背景色等）
+- 底部有「恢复默认设置」按钮
+
+所有设置自动保存到 localStorage，刷新后保持。实现位于 `main.js` 的 `initSettingsMenu()` IIFE 中。
 
 ## 五、前端文件职责速查
 
@@ -368,50 +377,104 @@ updateMatrixDisplay(panel, matrices);
 
 ## 十、动画场景开发
 
-ch0_r0 和 ch0_r1 场景实现了可复用的动画模式。
+10 个动画场景（ch0_r0/ch0_r1/ch1_r0/ch2_r0/ch2_r1/ch3_r0/ch3_r3/ch3_r12/ch3_r13/matrix_calculator）共享统一的动画模式。动画控制 UI 由基类 `SceneRenderer` 提供（v2.0+），无需在每个渲染器中重复实现。
 
-### 三个工厂函数（从已有场景复制）
+### 动画工厂函数（从 draw-utils.js 导入）
 
 ```js
-// 可动画箭头 —— 通过 .update(endPoint) 改变方向和长度
-function createAnimatableArrow(color, labelText, thickness) { ... }
+import { createUpdatableWireframe, createUpdatableFaces, createAnimatableArrow,
+         EDGES_QUAD, FACES_QUAD } from '../draw-utils.js';
 
-// 可更新线框 —— 通过 .updateVertices(newVerts) 替换所有顶点
-function createUpdatableWireframe(vertices, edgePairs, color, opacity) { ... }
+// createUpdatableWireframe(vertices, edgePairs, color, opacity)
+//   → THREE.LineSegments 带 .updateVertices(newVertices) 方法
 
-// 可更新半透明面 —— 通过 .updateVertices(newVerts) 重建三角形
-function createUpdatableFaces(vertices, faceIndices, color, opacity) { ... }
+// createUpdatableFaces(vertices, faceIndices, color, opacity)
+//   → THREE.Group 带 .updateVertices(newVertices) 方法
+
+// createAnimatableArrow(endPos, color, labelText)
+//   → THREE.Group（线段+端点球+标签）带 .update(end) 方法
 ```
 
-### 动画流程
+### 动画流程（统一模式）
 
 ```
 buildScene(data)
-  ├── 填充 this._animData = {
-  │     arrows: [{arrow, start, end}, ...],
-  │     shapes: [{wire, face, original, target}, ...]
-  │   }
-  ├── 所有对象初始化为 t=0 状态（恒等变换）
-  └── setTimeout(() => this._startAnimation(), 350)
+  ├── 存储: this._animData, this._animT = 1.0, this._animating = false
+  ├── 创建可动画对象（wire/face/arrow），保存 src/dst 引用
+  ├── this._addAnimControlUI('la_chXrY_anim_auto')  ← 基类方法
+  └── this._interpolateToT(1.0)  ← 立即显示最终状态
 
-_startAnimation()
-  └── _animFrame() → 递归 rAF
-        └── _interpolateToT(t)  // ease-out cubic
-              ├── arrows: start.lerp(end, t)
-              └── shapes: original[i] + (target[i] - original[i]) * t
+_startAnimation()                              ← 用户点击「▶ 演示动画」
+  ├── _interpolateToT(0)                        ← 先复位到初始状态
+  └── _animFrame() → 递归 rAF (1500ms)
+        └── _interpolateToT(t)                  ← ease-out cubic
+              ├── wire.updateVertices(interp)
+              ├── face.updateVertices(interp)
+              └── arrow.update(interp)
 
-完成后 _updateAnimButton('🔄 重播动画', false)
+动画结束: _updateAnimButton('🔄 重播动画', false)
+
+_setToTarget()                                 ← 无动画直接跳最终状态
+  ├── _interpolateToT(1.0)
+  └── _updateAnimButton('🔄 重播动画', false)
 ```
 
-### 重播按钮
+### 基类提供的动画 UI 方法
+
+| 方法 | 说明 |
+|------|------|
+| `this._addAnimControlUI(storageKey)` | 在 solution 面板顶部插入 **[⟳ 自动动画: 开/关] + [▶ 演示动画]** 按钮行。自动开关状态持久化到 `storageKey`（格式 `la_chXrY_anim_auto`） |
+| `this._updateAnimButton(text, disabled)` | 更新播放按钮文字和禁用状态 |
+| `this._isAnimAutoEnabled(key)` | 读取自动动画开关 |
+| `this._setAnimAutoEnabled(key, val)` | 写入自动动画开关 |
+
+### 子类必须实现的动画方法
 
 ```js
-// 必须覆写 _computeAndRender，否则 _updateSolutionInfo 的 innerHTML 会覆盖按钮
+// 必须覆写：参数变化后重新添加动画 UI
 async _computeAndRender(params, showLoading) {
     await super._computeAndRender(params, showLoading);
-    this._addAnimationButton();  // 在 solution 面板顶部插入按钮
+    this._addAnimControlUI('la_chXrY_anim_auto');
+}
+
+_startAnimation() {
+    if (this._animating) return;
+    this._interpolateToT(0);  // 复位到初始状态
+    this._animating = true;
+    this._animStartTime = performance.now();
+    this._animDuration = 1500;
+    this._updateAnimButton('⟳ 动画中...', true);
+    this._animFrame();
+}
+
+_animFrame() {
+    if (!this._animating) return;
+    const elapsed = performance.now() - this._animStartTime;
+    let t = Math.min(elapsed / this._animDuration, 1.0);
+    t = 1 - Math.pow(1 - t, 3);  // ease-out cubic
+    this._interpolateToT(t);
+    if (t < 1.0) {
+        this._animFrameId = requestAnimationFrame(() => this._animFrame());
+    } else {
+        this._animating = false;
+        this._updateAnimButton('🔄 重播动画', false);
+    }
+}
+
+_interpolateToT(t) {
+    // 线性插值所有可动画对象
+    // interp[i] = src[i] + (dst[i] - src[i]) * t
+}
+
+_setToTarget() {
+    this._interpolateToT(1.0);
+    this._updateAnimButton('🔄 重播动画', false);
 }
 ```
+
+### 动画 localStorage key 命名
+
+格式：`la_<场景路由>_anim_auto`，如 `la_ch1r0_anim_auto`。共 10 个场景，全部由 `scene-base.js` 的 `_addAnimControlUI()` 统一管理。
 
 ## 十一、AI 答疑模块
 
