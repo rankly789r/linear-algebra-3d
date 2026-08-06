@@ -361,6 +361,16 @@ class DockZone {
         panel.zone = this;
         panel.el.style.display = '';  // 确保可见
         panel._updateResizeOrientation();  // 根据区域方向调整 resize 手柄
+
+        // 进入竖向区域时清除自定义宽度，避免横向区域设置的宽面板溢出列宽
+        // （left 列 260px / right 列 340px，竖向区域宽度由列控制，不按面板单独设宽）
+        if (this.orientation === 'vertical' && panel._customSize?.width) {
+            panel.el.style.width = '';
+            panel.el.style.minWidth = '';
+            panel._customSize.width = null;
+            panel._saveSize();
+        }
+
         // 如果面板 body 已有 data-orientation（由 matrix-display 设置），
         // 则更新它以匹配新区域方向，CSS 会自动重新排版
         if (panel.body && panel.body.dataset.orientation) {
