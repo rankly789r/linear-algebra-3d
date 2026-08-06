@@ -305,8 +305,8 @@ body {
 /* 拖拽进行中：空列显示为可见的拖放接收区 */
 body.is-dragging #left-column.no-panels,
 body.is-dragging #right-column.no-panels {
-    width: 60px !important;
-    min-width: 60px !important;
+    width: 100px !important;
+    min-width: 100px !important;
     overflow: visible;
     transition: none; /* 立即出现，不等 0.2s 过渡 */
     background: rgba(76, 201, 240, 0.06);

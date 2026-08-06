@@ -345,15 +345,14 @@ function resize() {
     camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
-// 监听 dock zone 大小变化以触发 canvas resize
-for (const zoneId of ['left', 'right', 'top', 'bottom']) {
-    const zoneEl = document.getElementById(`dock-${zoneId}`);
-    if (zoneEl) {
-        new ResizeObserver(() => {
-            requestAnimationFrame(() => resize());
-        }).observe(zoneEl);
-    }
-}
+
+// 监听 viewer 尺寸变化（列过渡时 debounce，避免每帧 resize 导致闪烁）
+let _resizeDebounce = null;
+new ResizeObserver(() => {
+    if (_resizeDebounce) clearTimeout(_resizeDebounce);
+    _resizeDebounce = setTimeout(() => resize(), 120);
+}).observe(viewer);
+
 resize();
 
 // ─── 动画循环（页面不可见时暂停渲染） ──
