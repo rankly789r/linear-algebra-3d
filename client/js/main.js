@@ -254,7 +254,24 @@ const SCENE_RENDERERS = {
 const canvas = document.getElementById('three-canvas');
 const viewer = document.getElementById('viewer');
 
-// 阻止浏览器右键菜单和鼠标手势（外部浏览器中右键用于 OrbitControls 平移）
+// WebGL 可用性检测：不支持时显示友好提示而非白屏
+const hasWebGL = (() => {
+    try {
+        const testCanvas = document.createElement('canvas');
+        return !!(testCanvas.getContext('webgl2') || testCanvas.getContext('webgl'));
+    } catch (e) { return false; }
+})();
+if (!hasWebGL) {
+    document.getElementById('loading-overlay').style.display = 'none';
+    viewer.insertAdjacentHTML('afterbegin',
+        '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#ef476f;z-index:100;">' +
+        '<p style="font-size:1.2rem;margin-bottom:8px;">⚠️ 您的浏览器不支持 WebGL</p>' +
+        '<p style="font-size:0.85rem;color:#a0a0b8;">请使用最新版 Chrome、Edge 或 Firefox 打开</p>' +
+        '</div>');
+    throw new Error('WebGL not available');
+}
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 viewer.addEventListener('contextmenu', e => e.preventDefault());
 viewer.addEventListener('mousedown', e => { if (e.button === 2) e.preventDefault(); });
 viewer.addEventListener('mouseup', e => { if (e.button === 2) e.preventDefault(); });
@@ -266,7 +283,6 @@ document.addEventListener('wheel', e => {
     if (e.target.closest('#viewer')) e.preventDefault();
 }, { passive: false });
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 
@@ -1074,17 +1090,6 @@ function getSceneMeta(sceneName) {
         },
     };
     return metas[sceneName] || { id: sceneName, title: sceneName, description: '', params: {}, presets: [] };
-}
-
-function getDefaultParams(sceneName) {
-    const meta = getSceneMeta(sceneName);
-    const defaults = {};
-    if (meta.params) {
-        for (const [key, def] of Object.entries(meta.params)) {
-            defaults[key] = def.default;
-        }
-    }
-    return defaults;
 }
 
 // ─── 场景按钮事件 ────────────────────────────────────────
