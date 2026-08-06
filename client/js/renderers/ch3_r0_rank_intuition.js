@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three';
 import { SceneRenderer } from '../scene-base.js';
-import { drawPoint, drawPlane, drawInfiniteLine, COLORS } from '../draw-utils.js';
+import { drawPoint, drawPlane, drawInfiniteLine, COLORS, createUpdatableWireframe } from '../draw-utils.js';
 
 // ─── 固定输入网格点（总是这 9 个点，在 XY 平面） ───
 const INPUT_GRID = [
@@ -16,45 +16,8 @@ const INPUT_GRID = [
     [1,1,0], [1,-1,0], [-1,1,0], [-1,-1,0],
 ];
 
-// ═══════════════════════════════════════════════════════════
-// 工厂函数
-// ═══════════════════════════════════════════════════════════
-
-function createUpdatableWireframe(vertices, color, opacity) {
-    const n = vertices.length;
-    const positions = new Float32Array(n * 6);  // n edges * 6 floats
-    for (let i = 0; i < n; i++) {
-        const j = (i + 1) % n;
-        const off = i * 6;
-        positions[off] = vertices[i][0];
-        positions[off+1] = vertices[i][1];
-        positions[off+2] = vertices[i][2];
-        positions[off+3] = vertices[j][0];
-        positions[off+4] = vertices[j][1];
-        positions[off+5] = vertices[j][2];
-    }
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const mat = new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity, depthTest: true });
-    const lines = new THREE.LineSegments(geom, mat);
-
-    lines.updateVertices = function (newVertices) {
-        const arr = geom.attributes.position.array;
-        const m = newVertices.length;
-        for (let i = 0; i < m; i++) {
-            const j = (i + 1) % m;
-            const off = i * 6;
-            arr[off] = newVertices[i][0];
-            arr[off+1] = newVertices[i][1];
-            arr[off+2] = newVertices[i][2];
-            arr[off+3] = newVertices[j][0];
-            arr[off+4] = newVertices[j][1];
-            arr[off+5] = newVertices[j][2];
-        }
-        geom.attributes.position.needsUpdate = true;
-    };
-    return lines;
-}
+/** 生成闭环边索引 [0,1],[1,2],...,[n-1,0] */
+function loopEdges(n) { return Array.from({ length: n }, (_, i) => [i, (i + 1) % n]); }
 
 
 export class RankIntuitionRenderer extends SceneRenderer {
@@ -73,7 +36,7 @@ export class RankIntuitionRenderer extends SceneRenderer {
         // ─── 输入圆周（灰色虚线 ghost，固定不变） ──────────
         if (sd.input_circle && sd.input_circle.length > 0) {
             const inputPts3D = sd.input_circle.map(p => [p[0], p[1], 0]);
-            const ghostWire = createUpdatableWireframe(inputPts3D, 0x555555, 0.5);
+            const ghostWire = createUpdatableWireframe(inputPts3D, loopEdges(inputPts3D.length), 0x555555, 0.5);
             // 用虚线材质
             ghostWire.material = new THREE.LineDashedMaterial({ color: 0x555555, dashSize: 0.3, gapSize: 0.2, transparent: true, opacity: 0.5 });
             ghostWire.computeLineDistances = function () {
@@ -98,7 +61,7 @@ export class RankIntuitionRenderer extends SceneRenderer {
             const input3D = sd.input_circle.map(p => [p[0], p[1], 0]);
             const circleColor = rank === 2 ? COLORS.vector1 : (rank === 1 ? COLORS.vector2 : 0x888888);
 
-            this._circleWire = createUpdatableWireframe(input3D, circleColor, 0.9);
+            this._circleWire = createUpdatableWireframe(input3D, loopEdges(input3D.length), circleColor, 0.9);
             this._animCircleSrc = input3D;
             this._animCircleDst = sd.output_circle;
 

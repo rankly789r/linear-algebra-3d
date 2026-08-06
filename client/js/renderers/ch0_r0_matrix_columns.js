@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import { SceneRenderer } from '../scene-base.js';
-import { COLORS } from '../draw-utils.js';
+import { COLORS, createUpdatableWireframe, createUpdatableFaces, createAnimatableArrow } from '../draw-utils.js';
 
 // 基向量颜色（对应 X/Y/Z 轴颜色）
 const BASIS_COLORS = [
@@ -21,173 +21,6 @@ const BASIS_COLORS = [
 const BASIS_LABELS_3D = ['e₁ → 第1列', 'e₂ → 第2列', 'e₃ → 第3列'];
 const BASIS_LABELS_2D = ['e₁ → 第1列', 'e₂ → 第2列'];
 
-/**
- * 创建可更新的箭头（用于动画）
- * 箭头从原点出发，指向 endPoint
- */
-function createAnimatableArrow(color, labelText, thickness = 1.0) {
-    const group = new THREE.Group();
-
-    const bodyRadius = 0.06 * thickness;
-    const coneRadius = 0.16 * thickness;
-    const coneHeight = 0.35 * thickness;
-
-    // 柱身（初始长度 1，沿 Y 轴）
-    const bodyGeom = new THREE.CylinderGeometry(bodyRadius, bodyRadius, 1, 8);
-    const bodyMat = new THREE.MeshStandardMaterial({
-        color, emissive: color, emissiveIntensity: 0.4,
-    });
-    const body = new THREE.Mesh(bodyGeom, bodyMat);
-    body.position.set(0, 0.5, 0);
-    group.add(body);
-
-    // 锥头
-    const coneGeom = new THREE.ConeGeometry(coneRadius, coneHeight, 12);
-    const coneMat = new THREE.MeshStandardMaterial({
-        color, emissive: color, emissiveIntensity: 0.7,
-    });
-    const cone = new THREE.Mesh(coneGeom, coneMat);
-    cone.position.set(0, 1, 0);
-    group.add(cone);
-
-    // 标签
-    const canvas = document.createElement('canvas');
-    canvas.width = 256; canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    ctx.font = 'bold 28px sans-serif';
-    ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(labelText, 128, 32);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: texture, transparent: true, depthTest: false,
-    }));
-    sprite.scale.set(1.6, 0.4, 1);
-    group.add(sprite);
-
-    // 更新函数：设置箭头终点
-    group.update = function (endPoint) {
-        const dir = endPoint.clone().normalize();
-        const len = endPoint.length();
-        const up = new THREE.Vector3(0, 1, 0);
-
-        if (len < 0.001) {
-            group.visible = false;
-            return;
-        }
-        group.visible = true;
-
-        const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
-        group.setRotationFromQuaternion(quat);
-
-        body.scale.y = len;
-        body.position.y = len / 2;
-
-        cone.position.y = len;
-
-        sprite.position.set(0, len + coneHeight + 0.3, 0);
-    };
-
-    return group;
-}
-
-/**
- * 创建形状线框（可更新顶点）
- * @param {number[][]} vertices - 初始顶点
- * @param {number[][]} edgePairs - 边索引对 [[i,j], ...]
- * @param {number} color
- * @param {number} opacity
- */
-function createUpdatableWireframe(vertices, edgePairs, color, opacity = 1.0) {
-    // 展开边为线段顶点
-    const positions = [];
-    edgePairs.forEach(([i, j]) => {
-        positions.push(...vertices[i], ...vertices[j]);
-    });
-
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute('position',
-        new THREE.BufferAttribute(new Float32Array(positions), 3));
-
-    const mat = new THREE.LineBasicMaterial({
-        color, transparent: opacity < 1, opacity, depthTest: true,
-    });
-    const lines = new THREE.LineSegments(geom, mat);
-
-    // 更新函数
-    lines.updateVertices = function (newVertices) {
-        const arr = geom.attributes.position.array;
-        let idx = 0;
-        edgePairs.forEach(([i, j]) => {
-            arr[idx] = newVertices[i][0];
-            arr[idx + 1] = newVertices[i][1];
-            arr[idx + 2] = newVertices[i][2];
-            arr[idx + 3] = newVertices[j][0];
-            arr[idx + 4] = newVertices[j][1];
-            arr[idx + 5] = newVertices[j][2];
-            idx += 6;
-        });
-        geom.attributes.position.needsUpdate = true;
-    };
-
-    return lines;
-}
-
-/**
- * 创建半透明面（可更新顶点）
- */
-function createUpdatableFaces(vertices, faceIndices, color, opacity = 0.2) {
-    const group = new THREE.Group();
-
-    faceIndices.forEach(face => {
-        const triVerts = face.map(i => new THREE.Vector3(...vertices[i]));
-        const geom = new THREE.BufferGeometry();
-        geom.setAttribute('position',
-            new THREE.BufferAttribute(new Float32Array(
-                triVerts.flatMap(v => [v.x, v.y, v.z])
-            ), 3));
-        geom.setIndex([0, 1, 2]);
-        geom.computeVertexNormals();
-
-        const mat = new THREE.MeshStandardMaterial({
-            color, side: THREE.DoubleSide, transparent: true,
-            opacity, depthWrite: false,
-        });
-        group.add(new THREE.Mesh(geom, mat));
-    });
-
-    // 更新函数：重建所有面
-    group.updateVertices = function (newVertices) {
-        // 清除旧面
-        while (group.children.length > 0) {
-            const child = group.children[0];
-            child.geometry.dispose();
-            child.material.dispose();
-            group.remove(child);
-        }
-        // 重建新面
-        faceIndices.forEach(face => {
-            const triVerts = face.map(i => new THREE.Vector3(...newVertices[i]));
-            const geom = new THREE.BufferGeometry();
-            geom.setAttribute('position',
-                new THREE.BufferAttribute(new Float32Array(
-                    triVerts.flatMap(v => [v.x, v.y, v.z])
-                ), 3));
-            geom.setIndex([0, 1, 2]);
-            geom.computeVertexNormals();
-
-            const mat = new THREE.MeshStandardMaterial({
-                color, side: THREE.DoubleSide, transparent: true,
-                opacity, depthWrite: false,
-            });
-            group.add(new THREE.Mesh(geom, mat));
-        });
-    };
-
-    return group;
-}
 
 
 export class MatrixColumnsRenderer extends SceneRenderer {
@@ -209,12 +42,10 @@ export class MatrixColumnsRenderer extends SceneRenderer {
         const basisLabels = is3D ? BASIS_LABELS_3D : BASIS_LABELS_2D;
 
         basisOrig.forEach((v, i) => {
-            const arrow = createAnimatableArrow(0x555566, '', 0.6);
-            arrow.update(new THREE.Vector3(...v));
-            // 用虚线材质替换柱身
-            arrow.children[0].material = new THREE.MeshStandardMaterial({
-                color: 0x555566, emissive: 0x333344, emissiveIntensity: 0.2,
-                transparent: true, opacity: 0.4,
+            const arrow = createAnimatableArrow([...v], 0x555566, '');
+            // 用 ghost 材质替换（draw-utils 箭头为 Line + Sphere）
+            arrow.children[0].material = new THREE.LineBasicMaterial({
+                color: 0x555566, transparent: true, opacity: 0.4,
             });
             arrow.children[1].material = new THREE.MeshStandardMaterial({
                 color: 0x555566, emissive: 0x333344, emissiveIntensity: 0.2,
@@ -231,9 +62,7 @@ export class MatrixColumnsRenderer extends SceneRenderer {
         d.columns.forEach((colInfo, i) => {
             const color = BASIS_COLORS[i];
             const label = is3D ? BASIS_LABELS_3D[i] : BASIS_LABELS_2D[i];
-            const arrow = createAnimatableArrow(color, label, 1.3);
-            // 初始位置：从原始基向量开始（动画从 t=0 开始）
-            arrow.update(new THREE.Vector3(...colInfo.start));
+            const arrow = createAnimatableArrow([...colInfo.start], color, label);
             this.sceneObjects.add(arrow);
             this._basisArrows.push({ arrow, start: colInfo.start, end: colInfo.end });
         });
@@ -387,9 +216,11 @@ export class MatrixColumnsRenderer extends SceneRenderer {
 
         // 插值基向量箭头
         this._basisArrows.forEach(({ arrow, start, end }) => {
-            const s = new THREE.Vector3(...start);
-            const e = new THREE.Vector3(...end);
-            const pos = s.clone().lerp(e, t);
+            const pos = [
+                start[0] + (end[0] - start[0]) * t,
+                start[1] + (end[1] - start[1]) * t,
+                start[2] + (end[2] - start[2]) * t,
+            ];
             arrow.update(pos);
         });
 

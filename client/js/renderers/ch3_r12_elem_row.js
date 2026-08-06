@@ -6,14 +6,7 @@
  */
 import * as THREE from 'three';
 import { SceneRenderer } from '../scene-base.js';
-import { drawDashedLine, COLORS } from '../draw-utils.js';
-
-// ═══════════════════════════════════════════════════════════
-// 工厂函数
-// ═══════════════════════════════════════════════════════════
-
-const EDGES_QUAD = [[0, 1], [1, 2], [2, 3], [3, 0]];
-const FACES_QUAD = [[0, 1, 2], [0, 2, 3]];
+import { drawDashedLine, COLORS, createUpdatableWireframe, createUpdatableFaces, EDGES_QUAD, FACES_QUAD } from '../draw-utils.js';
 
 const CUBE_EDGES = [
     [0, 1], [0, 2], [0, 3], [1, 4], [1, 5],
@@ -25,50 +18,6 @@ const CUBE_FACES = [
     [0, 1, 5], [0, 5, 3], [2, 4, 7], [2, 7, 6],
     [0, 2, 6], [0, 6, 3], [1, 4, 7], [1, 7, 5],
 ];
-
-function createUpdatableWireframe(vertices, edgePairs, color, opacity) {
-    const positions = [];
-    edgePairs.forEach(([i, j]) => {
-        positions.push(...vertices[i], ...vertices[j]);
-    });
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
-    const mat = new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity, depthTest: true });
-    const lines = new THREE.LineSegments(geom, mat);
-
-    lines.updateVertices = function (newVertices) {
-        const arr = geom.attributes.position.array;
-        let idx = 0;
-        edgePairs.forEach(([i, j]) => {
-            arr[idx] = newVertices[i][0]; arr[idx + 1] = newVertices[i][1]; arr[idx + 2] = newVertices[i][2];
-            arr[idx + 3] = newVertices[j][0]; arr[idx + 4] = newVertices[j][1]; arr[idx + 5] = newVertices[j][2];
-            idx += 6;
-        });
-        geom.attributes.position.needsUpdate = true;
-    };
-    return lines;
-}
-
-function createUpdatableFaces(vertices, faceIndices, color, opacity) {
-    const group = new THREE.Group();
-    const buildFaces = (verts) => {
-        while (group.children.length > 0) {
-            const c = group.children[0]; c.geometry.dispose(); c.material.dispose(); group.remove(c);
-        }
-        faceIndices.forEach(face => {
-            const tv = face.map(i => new THREE.Vector3(...verts[i]));
-            const geom = new THREE.BufferGeometry();
-            geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(tv.flatMap(v => [v.x, v.y, v.z])), 3));
-            geom.setIndex([0, 1, 2]);
-            geom.computeVertexNormals();
-            const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity, depthWrite: false });
-            group.add(new THREE.Mesh(geom, mat));
-        });
-    };
-    buildFaces(vertices);
-    group.updateVertices = buildFaces;
-    return group;
-}
 
 const TRANSFORM_COLORS = [0x4cc9f0, 0xffd166];  // A: blue, EA: yellow
 
