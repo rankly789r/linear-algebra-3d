@@ -9,7 +9,7 @@ Ax=b 的两种等价解读：
 但列视图是理解「矩阵=线性变换」「秩=列空间维数」的关键。
 """
 import numpy as np
-from server.scenes.base import BaseScene, SceneParams
+from server.scenes.base import BaseScene, SceneParams, matrix_params, vector_params
 from server.math_engine import MathEngine as M
 
 
@@ -23,30 +23,8 @@ class Ch2R3AxEqB(BaseScene):
             "chapter": "第2章 矩阵及其运算",
             "description": "Ax=b 的两种视角：行视图（直线的交点=解）vs 列视图（b=列向量的线性组合）。双重视角并排对比。",
             "params": {
-                "a11": {
-                    "label": "a₁₁", "type": "float",
-                    "default": 2, "min": -5, "max": 5, "step": 0.1,
-                },
-                "a12": {
-                    "label": "a₁₂", "type": "float",
-                    "default": 1, "min": -5, "max": 5, "step": 0.1,
-                },
-                "a21": {
-                    "label": "a₂₁", "type": "float",
-                    "default": 1, "min": -5, "max": 5, "step": 0.1,
-                },
-                "a22": {
-                    "label": "a₂₂", "type": "float",
-                    "default": 3, "min": -5, "max": 5, "step": 0.1,
-                },
-                "b1": {
-                    "label": "b₁", "type": "float",
-                    "default": 4, "min": -10, "max": 10, "step": 0.1,
-                },
-                "b2": {
-                    "label": "b₂", "type": "float",
-                    "default": 6, "min": -10, "max": 10, "step": 0.1,
-                },
+                **matrix_params("a", 2, 2, defaults=[2, 1, 1, 3], min=-5, max=5),
+                **vector_params("b", 2, defaults=[4, 6], min=-10, max=10),
             },
             "presets": [
                 {

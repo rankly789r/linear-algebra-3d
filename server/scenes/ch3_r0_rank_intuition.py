@@ -9,7 +9,7 @@
 观察分布在输入空间中的点经过矩阵变换后的形状。
 """
 import numpy as np
-from server.scenes.base import BaseScene, SceneParams
+from server.scenes.base import BaseScene, SceneParams, matrix_params
 from server.math_engine import MathEngine as M
 
 
@@ -23,12 +23,7 @@ class Ch3R0RankIntuition(BaseScene):
             "chapter": "第三章",
             "description": "矩阵作为线性变换，观察它如何改变空间中向量的分布。秩就是变换后「像空间」的维数——也被「压扁」成几维。",
             "params": {
-                "a11": {"label": "a₁₁", "type": "float", "default": 1, "min": -2, "max": 2, "step": 0.1},
-                "a12": {"label": "a₁₂", "type": "float", "default": 0, "min": -2, "max": 2, "step": 0.1},
-                "a21": {"label": "a₂₁", "type": "float", "default": 0, "min": -2, "max": 2, "step": 0.1},
-                "a22": {"label": "a₂₂", "type": "float", "default": 1, "min": -2, "max": 2, "step": 0.1},
-                "a31": {"label": "a₃₁", "type": "float", "default": 0, "min": -2, "max": 2, "step": 0.1},
-                "a32": {"label": "a₃₂", "type": "float", "default": 0, "min": -2, "max": 2, "step": 0.1},
+                **matrix_params("a", 3, 2, defaults=[[1,0],[0,1],[0,0]], min=-2, max=2),
             },
             "presets": [
                 {"label": "秩=2（满秩）", "type": "unique",

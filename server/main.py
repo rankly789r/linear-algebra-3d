@@ -44,6 +44,7 @@ from server.scenes.ch2_r3_ax_eq_b import Ch2R3AxEqB
 from server.scenes.ch2_r4_cramer import Ch2R4Cramer
 from server.scenes.ch3_r9_gaussian import Ch3R9Gaussian
 from server.scenes.ch1_r3_permutation import Ch1R3Permutation
+from server.scenes.ch1_r0_equation_to_plane import Ch1R0EquationToPlane
 
 SCENE_REGISTRY = {
     "ch0_r0_matrix_columns": Ch0R0MatrixColumns,
@@ -62,6 +63,7 @@ SCENE_REGISTRY = {
     "ch1_r1_det_volume": Ch1R1DetVolume,
     "ch1_r2_det_properties": Ch1R2DetProperties,
     "ch1_r3_permutation": Ch1R3Permutation,
+    "ch1_r0_equation_to_plane": Ch1R0EquationToPlane,
     "ch2_r0_matrix_multiply": Ch2R0MatrixMultiply,
     "ch2_r1_matrix_inverse": Ch2R1MatrixInverse,
     "ch2_r2_matrix_transpose": Ch2R2MatrixTranspose,

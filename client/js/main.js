@@ -7,6 +7,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { computeScene } from './api.js';
 import { SceneRenderer } from './scene-base.js';
 import { panelManager } from './panel-system.js';
+import { initSettingsMenu } from './settings-menu.js';
 
 // ─── 面板系统初始化 ──────────────────────────────────────
 
@@ -40,6 +41,7 @@ window.panelManager = panelManager;
     navPanel.body.innerHTML = `
         <input class="scene-search" placeholder="🔍 搜索场景..." autocomplete="off">
         <div class="menu-label">基础概念</div>
+        <button class="scene-btn" data-scene="ch1_r0_equation_to_plane">从方程到平面的几何对应</button>
         <button class="scene-btn" data-scene="ch0_r0_matrix_columns">矩阵的列——线性变换的密码</button>
         <button class="scene-btn" data-scene="ch0_r1_column_decompose">逐列拆解——行与列的几何含义</button>
 
@@ -207,412 +209,9 @@ let currentSceneName = null;
     `;
 })();
 
-// ─── 设置菜单（全局悬浮，整合面板显示+网格+参数范围+颜色）──
+// ─── 设置菜单（已提取到 settings-menu.js，由 initSettingsMenu() 初始化）──
 
-(function initSettingsMenu() {
-    const toggleBtn = document.getElementById('settings-toggle');
-    const menu = document.getElementById('settings-menu');
-    if (!toggleBtn || !menu) return;
-
-    // ── 可管理的面板列表 ──
-    const panelDefs = [
-        { id: 'scenenav', label: '📐 场景目录' },
-        { id: 'presets',  label: '📌 预设情形' },
-        { id: 'params',   label: '🎚 参数调节' },
-        { id: 'camera',   label: '📷 视角控制' },
-        { id: 'solution', label: '📊 分析结果' },
-        { id: 'lecture',  label: '📖 讲解' },
-        { id: 'verify',   label: '🔍 数学验证' },
-        { id: 'matrix',   label: '📋 矩阵数据' },
-    ];
-
-    // ═══════════════════════════════════════════════════════
-    // 1. 面板可见性子菜单
-    // ═══════════════════════════════════════════════════════
-
-    const panelList = document.getElementById('settings-panel-list');
-    const savedVis = _loadPanelVisibility();
-
-    panelDefs.forEach(def => {
-        const row = document.createElement('div');
-        row.className = 'settings-panel-item';
-
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.checked = savedVis[def.id] !== false;
-        cb.dataset.panelId = def.id;
-
-        const label = document.createElement('label');
-        label.textContent = def.label;
-
-        cb.addEventListener('change', () => {
-            _applyPanelVisibility(def.id, cb.checked);
-            _savePanelVisibility();
-        });
-
-        row.appendChild(cb);
-        row.appendChild(label);
-        row.addEventListener('click', (e) => {
-            if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
-        });
-        panelList.appendChild(row);
-        _applyPanelVisibility(def.id, cb.checked);
-    });
-
-    function _loadPanelVisibility() {
-        try { return JSON.parse(localStorage.getItem('la_panel_visibility') || '{}'); }
-        catch { return {}; }
-    }
-
-    function _savePanelVisibility() {
-        const state = {};
-        panelList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            state[cb.dataset.panelId] = cb.checked;
-        });
-        localStorage.setItem('la_panel_visibility', JSON.stringify(state));
-    }
-
-    function _applyPanelVisibility(panelId, visible) {
-        const panel = panelManager.getPanel(panelId);
-        if (!panel) return;
-        panel._userHidden = !visible;
-        visible ? panel.show() : panel.hide();
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // 2. 网格渲染距离子菜单
-    // ═══════════════════════════════════════════════════════
-
-    const gridBody = document.getElementById('settings-grid-body');
-    const gridRangeSlider = (function buildGridUI() {
-        const gs = _loadGridSettings();
-        const currentRange = gs.range ?? 5;
-
-        const row = document.createElement('div');
-        row.className = 'settings-grid-row';
-
-        const lbl = document.createElement('label');
-        lbl.textContent = '可视范围';
-
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.min = '3'; slider.max = '50'; slider.step = '1';
-        slider.value = currentRange;
-
-        const valSpan = document.createElement('span');
-        valSpan.className = 'settings-grid-value';
-        valSpan.textContent = '±' + currentRange;
-
-        slider.addEventListener('input', () => {
-            const range = parseInt(slider.value);
-            valSpan.textContent = '±' + range;
-            updateGridRenderer(range);
-        });
-        // 松手后才持久化，避免拖动时频繁写 localStorage 导致卡顿
-        slider.addEventListener('change', () => {
-            _saveGridSettings(parseInt(slider.value));
-        });
-
-        row.appendChild(lbl);
-        row.appendChild(slider);
-        row.appendChild(valSpan);
-        gridBody.appendChild(row);
-
-        return slider;  // 暴露给重置按钮
-    })();
-
-    // ═══════════════════════════════════════════════════════
-    // 3. 参数范围子菜单（随场景动态刷新）
-    // ═══════════════════════════════════════════════════════
-
-    const paramRangesBody = document.getElementById('settings-param-ranges-body');
-
-    function _loadParamRanges() {
-        try { return JSON.parse(localStorage.getItem('la_param_ranges') || '{}'); }
-        catch { return {}; }
-    }
-
-    function _saveParamRanges(ranges) {
-        try { localStorage.setItem('la_param_ranges', JSON.stringify(ranges)); }
-        catch {}
-    }
-
-    function refreshParamRangeUI() {
-        paramRangesBody.innerHTML = '';
-        if (!currentSceneName) {
-            paramRangesBody.innerHTML = '<div class="settings-panel-item" style="color:var(--text-muted);font-style:italic;">请先选择一个场景</div>';
-            return;
-        }
-
-        const meta = getSceneMeta(currentSceneName);
-        if (!meta || !meta.params) return;
-
-        const allRanges = _loadParamRanges();
-        const sceneRanges = allRanges[currentSceneName] || {};
-        let hasParams = false;
-
-        for (const [key, def] of Object.entries(meta.params)) {
-            if (def.type !== 'float' && def.type !== 'int') continue;
-            hasParams = true;
-
-            const row = document.createElement('div');
-            row.className = 'settings-paramrange-row';
-
-            const label = document.createElement('span');
-            label.className = 'settings-paramrange-label';
-            label.textContent = def.label;
-            label.title = def.label;
-
-            const curRange = sceneRanges[key] || {};
-            const curMin = curRange.min ?? def.min;
-            const curMax = curRange.max ?? def.max;
-
-            const minInput = document.createElement('input');
-            minInput.type = 'number';
-            minInput.className = 'settings-paramrange-input';
-            minInput.value = curMin;
-            minInput.step = def.step || 0.1;
-
-            const sep = document.createElement('span');
-            sep.className = 'settings-paramrange-sep';
-            sep.textContent = '~';
-
-            const maxInput = document.createElement('input');
-            maxInput.type = 'number';
-            maxInput.className = 'settings-paramrange-input';
-            maxInput.value = curMax;
-            maxInput.step = def.step || 0.1;
-
-            const applyChange = () => {
-                const allRanges = _loadParamRanges();
-                if (!allRanges[currentSceneName]) allRanges[currentSceneName] = {};
-                allRanges[currentSceneName][key] = {
-                    min: parseFloat(minInput.value) ?? def.min,
-                    max: parseFloat(maxInput.value) ?? def.max,
-                };
-                _saveParamRanges(allRanges);
-                // 重建当前场景的参数面板以应用新范围
-                if (currentSceneRenderer && typeof currentSceneRenderer._buildParams === 'function') {
-                    currentSceneRenderer._buildParams();
-                }
-            };
-
-            minInput.addEventListener('change', applyChange);
-            maxInput.addEventListener('change', applyChange);
-
-            row.appendChild(label);
-            row.appendChild(minInput);
-            row.appendChild(sep);
-            row.appendChild(maxInput);
-            paramRangesBody.appendChild(row);
-        }
-
-        if (!hasParams) {
-            paramRangesBody.innerHTML = '<div class="settings-panel-item" style="color:var(--text-muted);font-style:italic;">当前场景无参数</div>';
-        }
-    }
-
-    // 暴露给 switchScene 调用
-    window._refreshParamRangeUI = refreshParamRangeUI;
-
-    // ═══════════════════════════════════════════════════════
-    // 4. 颜色主题子菜单
-    // ═══════════════════════════════════════════════════════
-
-    const colorsBody = document.getElementById('settings-colors-body');
-
-    const colorDefs = [
-        { varName: '--accent',       label: '主题色',    cssProp: 'accent',       defHex: '#4cc9f0' },
-        { varName: '--bg-primary',   label: '主背景',    cssProp: 'bgPrimary',    defHex: '#1a1a2e', isBg: true },
-        { varName: '--bg-secondary', label: '次背景',    cssProp: 'bgSecondary',  defHex: '#16213e', isBg: true },
-        { varName: '--bg-nav',       label: '导航栏背景', cssProp: 'bgNav',       defHex: '#10101c', isBg: true },
-        { varName: '--green',        label: '绿色（验证通过）', cssProp: 'green',  defHex: '#06d6a0' },
-        { varName: '--red',          label: '红色（验证失败）', cssProp: 'red',    defHex: '#ef476f' },
-    ];
-
-    const DEFAULT_COLORS = {};
-    colorDefs.forEach(d => { DEFAULT_COLORS[d.cssProp] = d.defHex; });
-
-    // 仅从 localStorage 读取用户保存的颜色，不使用 getComputedStyle（避免模块执行时机问题导致读到空值）
-    function _loadColorTheme() {
-        try { return JSON.parse(localStorage.getItem('la_color_theme') || '{}'); }
-        catch { return {}; }
-    }
-
-    function _saveColorTheme(colors) {
-        try { localStorage.setItem('la_color_theme', JSON.stringify(colors)); } catch {}
-    }
-
-    function _applyColors(colors) {
-        colorDefs.forEach(d => {
-            const val = colors[d.cssProp];
-            if (val) document.documentElement.style.setProperty(d.varName, val);
-        });
-        // 同步 Three.js 背景色
-        const bgColor = colors.bgPrimary;
-        if (bgColor) {
-            scene.background = new THREE.Color(bgColor);
-            scene.fog = new THREE.Fog(bgColor, 12, 30);
-        }
-    }
-
-    function _getCurrentColor(cssProp) {
-        // 优先返回用户保存的值，否则用默认值（不依赖 getComputedStyle）
-        const saved = _loadColorTheme();
-        return saved[cssProp] || DEFAULT_COLORS[cssProp];
-    }
-
-    // 恢复用户保存的颜色 — 仅当 localStorage 中有保存值时才覆盖 CSS 变量
-    const savedColors = _loadColorTheme();
-    colorDefs.forEach(d => {
-        const val = savedColors[d.cssProp];
-        if (val) document.documentElement.style.setProperty(d.varName, val);
-    });
-
-    // 注册延迟回调：Three.js 场景初始化后同步背景色（仅当用户保存过背景色时覆盖）
-    window._applySavedThemeBg = function() {
-        const savedBg = savedColors.bgPrimary;
-        if (savedBg) {
-            scene.background = new THREE.Color(savedBg);
-            scene.fog = new THREE.Fog(savedBg, 12, 30);
-        }
-    };
-
-    colorDefs.forEach(d => {
-        const row = document.createElement('div');
-        row.className = 'settings-color-row';
-
-        const label = document.createElement('label');
-        label.textContent = d.label;
-
-        const colorInput = document.createElement('input');
-        colorInput.type = 'color';
-        colorInput.value = _getCurrentColor(d.cssProp);
-
-        const hexSpan = document.createElement('span');
-        hexSpan.className = 'color-hex';
-        hexSpan.textContent = _getCurrentColor(d.cssProp);
-
-        colorInput.addEventListener('input', () => {
-            hexSpan.textContent = colorInput.value;
-            const all = _loadColorTheme();
-            all[d.cssProp] = colorInput.value;
-            _saveColorTheme(all);
-            _applyColors(all);
-        });
-
-        row.appendChild(label);
-        row.appendChild(colorInput);
-        row.appendChild(hexSpan);
-        colorsBody.appendChild(row);
-    });
-
-    // ═══════════════════════════════════════════════════════
-    // 5. 重置按钮
-    // ═══════════════════════════════════════════════════════
-
-    const resetRow = document.createElement('div');
-    resetRow.className = 'settings-reset-row';
-    const resetBtn = document.createElement('button');
-    resetBtn.className = 'settings-reset-btn';
-    resetBtn.textContent = '恢复默认设置';
-    resetBtn.addEventListener('click', () => {
-        // 重置网格（默认 ±5，10×10 格，每格=1单位）
-        updateGridRenderer(5);
-        _saveGridSettings(5);
-        if (gridRangeSlider) {
-            gridRangeSlider.value = 5;
-            gridBody.querySelector('.settings-grid-value').textContent = '±5';
-        }
-
-        // 重置颜色（清除 localStorage 记录 + 移除所有 inline style 覆盖，回到 CSS :root 默认值）
-        _saveColorTheme({});
-        colorDefs.forEach(d => {
-            document.documentElement.style.removeProperty(d.varName);
-        });
-        scene.background = new THREE.Color(DEFAULT_COLORS.bgPrimary);
-        scene.fog = new THREE.Fog(DEFAULT_COLORS.bgPrimary, 12, 30);
-        // 更新颜色选择器
-        colorsBody.querySelectorAll('input[type="color"]').forEach((inp, i) => {
-            inp.value = colorDefs[i].defHex;
-            colorsBody.querySelectorAll('.color-hex')[i].textContent = colorDefs[i].defHex;
-        });
-
-        // 重置参数范围
-        _saveParamRanges({});
-        refreshParamRangeUI();
-
-        // 重置面板可见性（先设值再保存，避免保存中间状态）
-        panelList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            cb.checked = true;
-            _applyPanelVisibility(cb.dataset.panelId, true);
-        });
-        _savePanelVisibility();
-    });
-    resetRow.appendChild(resetBtn);
-    menu.appendChild(resetRow);
-
-    // ═══════════════════════════════════════════════════════
-    // 6. 菜单交互：折叠/展开 + 打开/关闭
-    // ═══════════════════════════════════════════════════════
-
-    // 恢复折叠状态
-    const savedCollapsed = (() => {
-        try { return JSON.parse(localStorage.getItem('la_settings_collapsed') || '{}'); }
-        catch { return {}; }
-    })();
-
-    // 初始折叠状态应用（默认全部折叠）
-    menu.querySelectorAll('.settings-l1').forEach(l1 => {
-        const section = l1.dataset.section;
-        if (savedCollapsed[section] === false) {
-            // 展开
-            const container = menu.querySelector(`.settings-l2-container[data-section="${section}"]`);
-            if (container) container.style.display = 'block';
-            l1.classList.add('expanded');
-        }
-    });
-
-    // 一级菜单折叠/展开（事件代理）
-    menu.addEventListener('click', (e) => {
-        const l1 = e.target.closest('.settings-l1');
-        if (!l1) return;
-        const section = l1.dataset.section;
-        const container = menu.querySelector(`.settings-l2-container[data-section="${section}"]`);
-        if (!container) return;
-
-        const isExpanded = container.style.display !== 'none';
-        if (isExpanded) {
-            container.style.display = 'none';
-            l1.classList.remove('expanded');
-        } else {
-            container.style.display = 'block';
-            l1.classList.add('expanded');
-        }
-        // 持久化折叠状态
-        const collapsed = {};
-        menu.querySelectorAll('.settings-l2-container').forEach(c => {
-            collapsed[c.dataset.section] = c.style.display === 'none';
-        });
-        try { localStorage.setItem('la_settings_collapsed', JSON.stringify(collapsed)); } catch {}
-    });
-
-    // 点击按钮切换菜单显示
-    toggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isVisible = menu.style.display !== 'none';
-        menu.style.display = isVisible ? 'none' : 'block';
-        // 打开菜单时刷新参数范围 UI（因为可能切换了场景）
-        if (!isVisible) refreshParamRangeUI();
-    });
-
-    // 点击空白处关闭菜单
-    document.addEventListener('click', (e) => {
-        if (!menu.contains(e.target) && e.target !== toggleBtn) {
-            menu.style.display = 'none';
-        }
-    });
-})();
+// ─── 场景渲染器注册 ──────────────────────────────────────
 
 // ─── 场景渲染器注册 ──────────────────────────────────────
 
@@ -640,6 +239,7 @@ import { Ch2R3AxEqBRenderer } from './renderers/ch2_r3_ax_eq_b.js';
 import { Ch2R4CramerRenderer } from './renderers/ch2_r4_cramer.js';
 import { Ch3R9GaussianRenderer } from './renderers/ch3_r9_gaussian.js';
 import { Ch1R3PermutationRenderer } from './renderers/ch1_r3_permutation.js';
+import { EquationToPlaneRenderer } from './renderers/ch1_r0_equation_to_plane.js';
 
 const SCENE_RENDERERS = {
     'ch0_r0_matrix_columns': MatrixColumnsRenderer,
@@ -654,6 +254,7 @@ const SCENE_RENDERERS = {
     'ch3_r7_rank_solution': RankSolutionRenderer,
     'ch3_r8_rank_properties': RankPropertiesRenderer,
     'matrix_calculator': MatrixCalculatorRenderer,
+    'ch1_r0_equation_to_plane': EquationToPlaneRenderer,
     'ch1_r0_det_area': DetAreaRenderer,
     'ch1_r1_det_volume': DetVolumeRenderer,
     'ch1_r2_det_properties': DetPropertiesRenderer,
@@ -709,8 +310,15 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a2e);
 scene.fog = new THREE.Fog(0x1a1a2e, 12, 30);
 
-// 应用用户保存的颜色主题背景（由 initSettingsMenu 注册）
-window._applySavedThemeBg?.();
+// 初始化设置菜单（网格、颜色、面板可见性、参数范围）
+// 在 scene 创建后调用，替代原来的 IIFE + window._applySavedThemeBg 回调
+initSettingsMenu({
+    scene,
+    panelManager,
+    getSceneMeta,
+    getSceneName: () => currentSceneName,
+    getRenderer: () => currentSceneRenderer,
+});
 
 const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 50);
 camera.up.set(0, 0, 1);  // Z轴向上
@@ -741,51 +349,7 @@ axisGroup.add(createAxis(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 6, 0),
 axisGroup.add(createAxis(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 6), 0x4488ff, 'Z'));
 scene.add(axisGroup);
 
-// XY 参考网格（Z轴向上，地面为XY平面）
-// renderOrder=-1 + depthWrite=false：网格先渲染但不写入深度缓冲，
-// 避免与用户绘制的图形产生 z-fighting 闪烁
-// 网格：range = 半轴单位数（±range 可见），size = range*2，divisions = size（每格=1单位）
-let gridRange = _loadGridSettings().range ?? 5;
-let gridHelper = new THREE.GridHelper(gridRange * 2, gridRange * 2, 0x333355, 0x222240);
-gridHelper.rotation.x = -Math.PI / 2;
-gridHelper.renderOrder = -1;
-gridHelper.material.depthWrite = false;
-scene.add(gridHelper);
-
-function _loadGridSettings() {
-    const defaults = { range: 5 };
-    try {
-        const saved = JSON.parse(localStorage.getItem('la_grid_settings') || '{}');
-        // 兼容旧格式 {size, divisions} → 转为 {range}
-        if (saved.range == null && saved.size != null) {
-            return { range: Math.round(saved.size / 2) };
-        }
-        return { ...defaults, ...saved };
-    } catch { return defaults; }
-}
-
-function _saveGridSettings(range) {
-    try { localStorage.setItem('la_grid_settings', JSON.stringify({ range })); } catch {}
-}
-
-function updateGridRenderer(range) {
-    if (gridHelper) {
-        scene.remove(gridHelper);
-        gridHelper.geometry.dispose();
-        if (Array.isArray(gridHelper.material)) {
-            gridHelper.material.forEach(m => m.dispose());
-        } else if (gridHelper.material) {
-            gridHelper.material.dispose();
-        }
-    }
-    gridRange = range;
-    const size = range * 2;
-    gridHelper = new THREE.GridHelper(size, size, 0x333355, 0x222240);
-    gridHelper.rotation.x = -Math.PI / 2;
-    gridHelper.renderOrder = -1;
-    gridHelper.material.depthWrite = false;
-    scene.add(gridHelper);
-}
+// XY 参考网格 — 已移至 settings-menu.js，由 initSettingsMenu() 初始化
 
 const originDot = new THREE.Mesh(
     new THREE.SphereGeometry(0.08, 16, 16),
@@ -1335,6 +899,28 @@ function getSceneMeta(sceneName) {
             ]
         },
 
+        'ch1_r0_equation_to_plane': {
+            id: 'ch1_r0_equation_to_plane',
+            title: '1.0 从方程到平面的几何对应',
+            description: '建立线性方程与平面的对应：一个方程定义一个平面，两个方程求交线。',
+            params: {
+                a1: { label: 'a₁', type: 'float', default: 2, min: -5, max: 5, step: 0.1 },
+                b1: { label: 'b₁', type: 'float', default: 1, min: -5, max: 5, step: 0.1 },
+                c1: { label: 'c₁', type: 'float', default: 3, min: -5, max: 5, step: 0.1 },
+                d1: { label: 'd₁', type: 'float', default: 0, min: -10, max: 10, step: 0.1 },
+                a2: { label: 'a₂', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                b2: { label: 'b₂', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                c2: { label: 'c₂', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                d2: { label: 'd₂', type: 'float', default: 0, min: -10, max: 10, step: 0.1 },
+            },
+            presets: [
+                { label: '认识一个平面', type: 'unique', params: { a1: 2, b1: 1, c1: 3, d1: 0, a2: 0, b2: 0, c2: 0, d2: 0 } },
+                { label: '平面平移（非齐次）', type: 'unique', params: { a1: 2, b1: 1, c1: 3, d1: 4, a2: 0, b2: 0, c2: 0, d2: 0 } },
+                { label: '两平面交于一线', type: 'unique', params: { a1: 1, b1: 0, c1: 0, d1: 2, a2: 0, b2: 1, c2: 0, d2: 3 } },
+                { label: '两平面平行无交', type: 'none', params: { a1: 1, b1: 1, c1: 1, d1: 2, a2: 1, b2: 1, c2: 1, d2: 5 } },
+                { label: '两平面重合', type: 'infinite', params: { a1: 1, b1: 1, c1: 1, d1: 2, a2: 2, b2: 2, c2: 2, d2: 4 } },
+            ]
+        },
         'ch1_r0_det_area': {
             id: 'ch1_r0_det_area',
             title: '1.0 二阶行列式的几何意义',

@@ -544,7 +544,14 @@ import {
 | JS 文件名 | 与路由一致 | `ch1_r1_det_volume.js` |
 | 变量 | camelCase | `faceColor`, `edgeColor` |
 | 后端 `scene_data` 字段 | 蛇形命名 | `output_grid_points` |
-| 参数 key | 蛇形命名 | `a11`, `vector1_x` |
+| 参数 key | 蛇形命名，矩阵元素用行列下标 | `a11`, `a12`, `b1`, `vector1_x` |
+| 参数 label | 用 Unicode 下标（₁₂₃）对应矩阵行列号 | `a₁₁`, `a₁₂`, `b₁` |
+
+**矩阵元素命名铁律：**
+- 矩阵 A 的第 i 行第 j 列元素 → 参数名 `aij`，标签 `a_{ij}`（如 `a11` → `a₁₁`）
+- 向量 b 的第 i 个元素 → 参数名 `bi`，标签 `b_i`（如 `b1` → `b₁`）
+- 多个矩阵时用不同字母前缀区分（`a11` = A 矩阵，`b11` = B 矩阵）
+- **禁止**用方程系数记法（`a₁`, `b₁`, `c₁`, `d₁`）——这些对用户毫无意义，同一数学结构在不同场景下必须统一命名
 
 ### 7.3 结构风格
 
@@ -577,6 +584,7 @@ import {
 - [ ] **矩阵数据**：如果需要显示矩阵，后端 `scene_data.matrices` 字段存在？
 - [ ] **drawVector 整体 add**：没有 `.children.forEach(c => group.add(c))`？
 - [ ] **动画场景**：覆写了 `_computeAndRender`，在 `super` 后调了 `_addAnimControlUI`？
+- [ ] **参数命名**：矩阵元素用 `a11`/`a12`/`a21`/`a22`（行列下标），不用 `a1`/`b1`/`c1`（方程系数）？
 - [ ] **动画场景**：`startAnimation()` 中的 `requestAnimationFrame` ID 存到了 `this._animFrameId`？
 - [ ] **预设类型**：`type` 字段是 `unique`/`none`/`infinite`/`degenerate` 之一？
 - [ ] **面板引用**：没有 `document.getElementById()` 操作面板？

@@ -10,7 +10,7 @@
 这是理解「矩阵 = 线性变换」最关键的一步。
 """
 import numpy as np
-from server.scenes.base import BaseScene, SceneParams
+from server.scenes.base import BaseScene, SceneParams, matrix_params
 from server.math_engine import MathEngine as M
 
 
@@ -34,17 +34,7 @@ class Ch0R0MatrixColumns(BaseScene):
                     "default": "2x2",
                     "options": ["2x2", "3x3"],
                 },
-                # 2×2 矩阵参数（3×3 模式时只用前 4 个）
-                "a11": {"label": "a₁₁ (列1.x)", "type": "float", "default": 2, "min": -5, "max": 5, "step": 0.1},
-                "a12": {"label": "a₁₂ (列2.x)", "type": "float", "default": 1, "min": -5, "max": 5, "step": 0.1},
-                "a21": {"label": "a₂₁ (列1.y)", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a22": {"label": "a₂₂ (列2.y)", "type": "float", "default": 3, "min": -5, "max": 5, "step": 0.1},
-                # 第 3 列 / 第 3 行参数（仅 3×3 模式使用）
-                "a13": {"label": "a₁₃ (列3.x)", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a23": {"label": "a₂₃ (列3.y)", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a31": {"label": "a₃₁ (列1.z)", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a32": {"label": "a₃₂ (列2.z)", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a33": {"label": "a₃₃ (列3.z)", "type": "float", "default": 2, "min": -5, "max": 5, "step": 0.1},
+                **matrix_params("a", 3, 3, defaults=[[2,1,0],[0,3,0],[0,0,2]], min=-5, max=5),
             },
             "presets": [
                 # ── 2×2 预设 ──

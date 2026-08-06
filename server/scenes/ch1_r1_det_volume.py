@@ -5,7 +5,7 @@
 det > 0：右手系 | det < 0：左手系 | det = 0：共面（退化）
 """
 import numpy as np
-from server.scenes.base import BaseScene, SceneParams
+from server.scenes.base import BaseScene, SceneParams, matrix_params
 from server.math_engine import MathEngine as M
 
 
@@ -19,15 +19,7 @@ class Ch1R1DetVolume(BaseScene):
             "chapter": "第1章 行列式",
             "description": "3×3 行列式的几何含义：三个列向量张成的平行六面体的（有向）体积。行列式为零意味着三个向量共面。",
             "params": {
-                "a11": {"label": "a₁₁", "type": "float", "default": 2, "min": -5, "max": 5, "step": 0.1},
-                "a12": {"label": "a₁₂", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a13": {"label": "a₁₃", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a21": {"label": "a₂₁", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a22": {"label": "a₂₂", "type": "float", "default": 2, "min": -5, "max": 5, "step": 0.1},
-                "a23": {"label": "a₂₃", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a31": {"label": "a₃₁", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a32": {"label": "a₃₂", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a33": {"label": "a₃₃", "type": "float", "default": 2, "min": -5, "max": 5, "step": 0.1},
+                **matrix_params("a", 3, 3, defaults=[[2,0,0],[0,2,0],[0,0,2]], min=-5, max=5),
             },
             "presets": [
                 {

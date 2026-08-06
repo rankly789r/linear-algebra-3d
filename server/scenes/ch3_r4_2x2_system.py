@@ -2,8 +2,8 @@
 场景 3.4：2×2 线性方程组 — 两直线相交的几何解释
 
 方程组：
-    a₁x + b₁y = c₁
-    a₂x + b₂y = c₂
+    a₁₁x + a₁₂y = b₁
+    a₂₁x + a₂₂y = b₂
 
 几何含义：
 - 两条直线交于一点 → 唯一解
@@ -11,7 +11,7 @@
 - 两条直线重合 → 无穷多解
 """
 import numpy as np
-from server.scenes.base import BaseScene, SceneParams
+from server.scenes.base import BaseScene, SceneParams, matrix_params, vector_params
 from server.math_engine import MathEngine as M
 
 
@@ -25,31 +25,27 @@ class Ch3R42x2System(BaseScene):
             "chapter": "第三章",
             "description": "两个未知数，两个方程——在平面上是两条直线。交于一点（唯一解）、平行（无解）、或重合（无穷解）。",
             "params": {
-                "a1": {"label": "a₁", "type": "float", "default": 2, "min": -5, "max": 5, "step": 0.1},
-                "b1": {"label": "b₁", "type": "float", "default": -1, "min": -5, "max": 5, "step": 0.1},
-                "c1": {"label": "c₁", "type": "float", "default": 1, "min": -10, "max": 10, "step": 0.1},
-                "a2": {"label": "a₂", "type": "float", "default": 1, "min": -5, "max": 5, "step": 0.1},
-                "b2": {"label": "b₂", "type": "float", "default": 1, "min": -5, "max": 5, "step": 0.1},
-                "c2": {"label": "c₂", "type": "float", "default": 3, "min": -10, "max": 10, "step": 0.1},
+                **matrix_params("a", 2, 2, defaults=[2, -1, 1, 1], min=-5, max=5),
+                **vector_params("b", 2, defaults=[1, 3], min=-10, max=10),
             },
             "presets": [
                 {"label": "唯一解", "type": "unique",
-                 "params": {"a1": 2, "b1": -1, "c1": 1, "a2": 1, "b2": 1, "c2": 3}},
+                 "params": {"a11": 2, "a12": -1, "b1": 1, "a21": 1, "a22": 1, "b2": 3}},
                 {"label": "无解（平行）", "type": "none",
-                 "params": {"a1": 1, "b1": 1, "c1": 2, "a2": 1, "b2": 1, "c2": 5}},
+                 "params": {"a11": 1, "a12": 1, "b1": 2, "a21": 1, "a22": 1, "b2": 5}},
                 {"label": "无穷解（重合）", "type": "infinite",
-                 "params": {"a1": 1, "b1": 1, "c1": 2, "a2": 2, "b2": 2, "c2": 4}},
+                 "params": {"a11": 1, "a12": 1, "b1": 2, "a21": 2, "a22": 2, "b2": 4}},
                 {"label": "垂直相交", "type": "unique",
-                 "params": {"a1": 1, "b1": 0, "c1": 2, "a2": 0, "b2": 1, "c2": 3}},
+                 "params": {"a11": 1, "a12": 0, "b1": 2, "a21": 0, "a22": 1, "b2": 3}},
             ]
         }
 
     def compute(self, params: SceneParams) -> dict:
-        a1 = params.get("a1", 2); b1 = params.get("b1", -1); c1 = params.get("c1", 1)
-        a2 = params.get("a2", 1); b2 = params.get("b2", 1);  c2 = params.get("c2", 3)
+        a11 = params.get("a11", 2); a12 = params.get("a12", -1); b1 = params.get("b1", 1)
+        a21 = params.get("a21", 1); a22 = params.get("a22", 1);  b2 = params.get("b2", 3)
 
-        A = np.array([[a1, b1], [a2, b2]], dtype=float)
-        b_vec = np.array([c1, c2], dtype=float)
+        A = np.array([[a11, a12], [a21, a22]], dtype=float)
+        b_vec = np.array([b1, b2], dtype=float)
 
         # 用 NumPy 求解
         sol_type, x_sol = M.solve_linear(A, b_vec)
@@ -60,7 +56,7 @@ class Ch3R42x2System(BaseScene):
         # 为在 3D 中显示，将 2D 直线嵌入 XY 平面
         # 直线 a*x + b*y = c 的几何表示
         lines_3d = []
-        for coeff_a, coeff_b, coeff_c, label in [(a1, b1, c1, "L₁"), (a2, b2, c2, "L₂")]:
+        for coeff_a, coeff_b, coeff_c, label in [(a11, a12, b1, "L₁"), (a21, a22, b2, "L₂")]:
             pts = self._line_3d_points(coeff_a, coeff_b, coeff_c)
             lines_3d.append({"points": pts, "label": label})
 
@@ -73,7 +69,7 @@ class Ch3R42x2System(BaseScene):
             desc = "两条直线平行，没有交点，方程组无解。"
         elif sol_type == "infinite":
             # 取直线上一点
-            x0 = self._point_on_line(a1, b1, c1)
+            x0 = self._point_on_line(a11, a12, b1)
             solution_3d = [float(x0[0]), float(x0[1]), 0.0] if x0 is not None else [0, 0, 0]
             desc = "两条直线重合，直线上每个点都是解，方程组有无穷多解。"
         else:
@@ -116,7 +112,7 @@ class Ch3R42x2System(BaseScene):
                 "title": "方程组 = 直线的交点",
                 "content": (
                     "二元一次方程组：\n\n"
-                    + f"$$\\begin{{cases}} {a1}x + {'+' if b1 >= 0 else ''}{b1}y = {c1} \\\\ {a2}x + {'+' if b2 >= 0 else ''}{b2}y = {c2} \\end{{cases}}$$\n\n"
+                    + f"$$\\begin{{cases}} {a11}x + {'+' if a12 >= 0 else ''}{a12}y = {b1} \\\\ {a21}x + {'+' if a22 >= 0 else ''}{a22}y = {b2} \\end{{cases}}$$\n\n"
                     + "每个方程代表平面上的一条直线。\n"
                     + "**方程组的解 = 两条直线的交点**。"
                 ),

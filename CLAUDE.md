@@ -151,6 +151,8 @@ Response: { success, data: { reply: "..." } }
 4. `client/js/main.js` — import + `SCENE_RENDERERS` + `getSceneMeta()`
 5. `main.js` `buildNavPanel()` — 菜单按钮
 
+**参数命名铁律**：矩阵元素用行列下标 `a11`/`a12`/`a21`/`a22`（标签 `a₁₁` 等），禁止方程系数记法 `a₁`/`b₁`/`c₁`。
+
 ### 动画场景
 参考 ch0_r0/ch2_r0/ch3_r0 等 10 个已有动画场景。工厂函数已提取到 `draw-utils.js`（`createUpdatableWireframe`、`createUpdatableFaces`、`createAnimatableArrow`），新场景从 `draw-utils.js` 导入即可。详见 [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md) 第十节。
 
@@ -183,6 +185,7 @@ Response: { success, data: { reply: "..." } }
 
 ### 基础设施
 - [ ] 向量拖拽交互（直接拖拽箭头端点修改向量）
+- [ ] 矩阵参数自动生成器（`matrix_params` / `vector_params` 工厂函数，见 [docs/audit/work-brief-matrix-params.md](docs/audit/work-brief-matrix-params.md)）
 - [x] 将动画工厂函数提取到 `draw-utils.js`~~（当前各场景各有一份拷贝）~~ ✅ 已完成（c378041）
 - [x] 将动画控制 UI 提取到 `scene-base.js`（`_addAnimControlUI` 等） ✅ 已完成（c05b012）
 - [ ] 场景标题栏菜单按钮：右上角 `#scene-info-header` 旁加一个图标按钮，点击弹出下拉菜单（主题切换、捐赠码等）
@@ -194,13 +197,14 @@ Response: { success, data: { reply: "..." } }
 
 ## 十一、AI 角色分工
 
-本项目有 3 个专职 AI 角色，各自维护独立的提示词文件：
+本项目有 4 个专职 AI 角色，各自维护独立的提示词文件：
 
-| 角色 | 提示词 | 职责 |
-|------|--------|------|
-| 🔍 AI 审计员 | [docs/audit/AI_AUDITOR_PROMPT.md](docs/audit/AI_AUDITOR_PROMPT.md) | 代码审查、安全审计、质量把关 |
-| 🖥️ AI 面板负责人 | [docs/AI_PANEL_LEAD_PROMPT.md](docs/AI_PANEL_LEAD_PROMPT.md) | 所有 UI/面板/CSS/持久化 |
-| 🎓 AI 场景开发者 | [docs/AI_SCENE_DEV_GUIDE.md](docs/AI_SCENE_DEV_GUIDE.md) | 新增/修改数学场景 |
+| 角色 | 提示词 | 技术参考 | 职责 |
+|------|--------|----------|------|
+| 🔍 AI 审计员 | [docs/audit/AI_AUDITOR_PROMPT.md](docs/audit/AI_AUDITOR_PROMPT.md) | — | 代码审查、安全审计、质量把关 |
+| 🖥️ AI 面板负责人 | [docs/AI_PANEL_LEAD_PROMPT.md](docs/AI_PANEL_LEAD_PROMPT.md) | — | 所有 UI/面板/CSS/持久化 |
+| 🎓 AI 场景开发者 | [docs/AI_SCENE_DEV_PROMPT.md](docs/AI_SCENE_DEV_PROMPT.md) | [AI_SCENE_DEV_GUIDE.md](docs/AI_SCENE_DEV_GUIDE.md) | 新增/修改数学场景，理解用户困惑并搭建 3D 可视化 |
+| 📦 AI 发版顾问 | — | — | 打包发布规划（待激活） |
 
 > 修改此项目前，必须阅读：
 > - **架构约束与已知陷阱** → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（第六节「已知问题与注意事项」）
