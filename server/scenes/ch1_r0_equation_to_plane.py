@@ -8,7 +8,7 @@
          [a₂₁, a₂₂, a₂₃]]         b₂]
 """
 import numpy as np
-from server.scenes.base import BaseScene, SceneParams
+from server.scenes.base import BaseScene, SceneParams, matrix_params, vector_params
 from server.math_engine import MathEngine as M
 
 
@@ -22,14 +22,8 @@ class Ch1R0EquationToPlane(BaseScene):
             "chapter": "基础",
             "description": "建立线性方程与平面的对应：一个方程定义一个平面，两个方程求交线。",
             "params": {
-                "a11": {"label": "a₁₁", "type": "float", "default": 2, "min": -5, "max": 5, "step": 0.1},
-                "a12": {"label": "a₁₂", "type": "float", "default": 1, "min": -5, "max": 5, "step": 0.1},
-                "a13": {"label": "a₁₃", "type": "float", "default": 3, "min": -5, "max": 5, "step": 0.1},
-                "b1": {"label": "b₁", "type": "float", "default": 0, "min": -10, "max": 10, "step": 0.1},
-                "a21": {"label": "a₂₁", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a22": {"label": "a₂₂", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "a23": {"label": "a₂₃", "type": "float", "default": 0, "min": -5, "max": 5, "step": 0.1},
-                "b2": {"label": "b₂", "type": "float", "default": 0, "min": -10, "max": 10, "step": 0.1},
+                **matrix_params("a", 2, 3, defaults=[[2, 1, 3], [0, 0, 0]], min=-5, max=5),
+                **vector_params("b", 2, defaults=[0, 0], min=-10, max=10),
             },
             "presets": [
                 {"label": "认识一个平面", "type": "unique", "params": {

@@ -43,7 +43,7 @@ xianxingdaishu/
 ├── server/                  ← Python 后端（FastAPI + NumPy，唯一事实来源）
 │   ├── main.py              ← 场景注册表 + AI 答疑端点
 │   ├── math_engine.py       ← NumPy/SciPy 封装
-│   └── scenes/              ← 24 个场景
+│   └── scenes/              ← 26 个场景
 ├── client/                  ← 浏览器前端（Three.js，只负责画）
 │   ├── index.html           ← 三栏布局 + 4 个 dock zone
 │   └── js/
@@ -52,7 +52,7 @@ xianxingdaishu/
 │       ├── panel-system.js  ← 可拖拽停靠面板
 │       ├── matrix-display.js← 矩阵 KaTeX 渲染（唯一出口）
 │       ├── draw-utils.js    ← 通用 3D 绘图
-│       └── renderers/       ← 24 个场景渲染器
+│       └── renderers/       ← 26 个场景渲染器
 ├── .vscode/                 ← F5 调试配置
 ├── app.py / start.bat / setup.bat
 └── notebooks/
@@ -98,12 +98,13 @@ Response: { success, data: { reply: "..." } }
 
 4 个停靠区：`left`(vertical) / `right`(vertical) / `top`(horizontal) / `bottom`(horizontal)
 
-## 六、场景清单（24个）🟢 = 有动画
+## 六、场景清单（26个）🟢 = 有动画
 
 | 章 | 路由 | 标题 |
 |----|------|------|
 | 基础 | `ch0_r0_matrix_columns` | 矩阵的列——线性变换的密码 🟢 |
 | 基础 | `ch0_r1_column_decompose` | 逐列拆解——行与列的几何含义 🟢 |
+| 基础 | `ch1_r0_equation_to_plane` | 从方程到平面的几何对应 |
 | Ch1 | `ch1_r0_det_area` | 2阶行列式的几何意义 🟢 |
 | Ch1 | `ch1_r1_det_volume` | 3阶行列式与平行六面体 |
 | Ch1 | `ch1_r2_det_properties` | 行列式的性质 |
@@ -121,6 +122,7 @@ Response: { success, data: { reply: "..." } }
 | Ch3 | `ch3_r5_3x3_system` | 3×3 方程组（三平面） |
 | Ch3 | `ch3_r6_homogeneous` | 齐次 vs 非齐次 |
 | Ch3 | `ch3_r7_rank_solution` | 秩与解的关系 |
+| Ch3 | `ch3_r7b_col_space` | 列空间与解的存在性 |
 | Ch3 | `ch3_r8_rank_properties` | 秩的性质 |
 | Ch3 | `ch3_r9_gaussian` | 高斯消元法的几何过程 |
 | Ch3 | `ch3_r12_elem_row` | 初等矩阵·行变换(左乘) 🟢 |
@@ -143,7 +145,7 @@ Response: { success, data: { reply: "..." } }
 
 ### 新增场景（5 步速查）
 
-> 详细代码模板和风格规范见 [docs/AI_SCENE_DEV_GUIDE.md](docs/AI_SCENE_DEV_GUIDE.md)（AI 审计员撰写，提取了全部 24 个场景的共性模式）。
+> 详细代码模板和风格规范见 [docs/AI_SCENE_DEV_GUIDE.md](docs/AI_SCENE_DEV_GUIDE.md)（AI 审计员撰写，提取了全部 26 个场景的共性模式）。
 
 1. `server/scenes/chX_rY_name.py` — 继承 BaseScene，实现 `get_meta()` + `compute()`
 2. `client/js/renderers/chX_rY_name.js` — 继承 SceneRenderer，实现 `buildScene()`

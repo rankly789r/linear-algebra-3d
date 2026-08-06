@@ -272,7 +272,7 @@ updateMatrixDisplay(panel, matrices);
 - **颜色主题**：修改 6 个关键 CSS 颜色变量（accent、背景色等）
 - 底部有「恢复默认设置」按钮
 
-所有设置自动保存到 localStorage，刷新后保持。实现位于 `main.js` 的 `initSettingsMenu()` IIFE 中。
+所有设置自动保存到 localStorage，刷新后保持。实现位于 `client/js/settings-menu.js` 的 `initSettingsMenu()` 函数中。
 
 ## 五、前端文件职责速查
 
