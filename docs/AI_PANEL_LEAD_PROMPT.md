@@ -81,6 +81,9 @@ document.querySelector('.panel-body').innerHTML = '...';
 | `la_sidebar_collapsed` | `{left: bool, right: bool}` | `main.js` 侧栏折叠逻辑 |
 | `la_current_scene` | 场景路由字符串 | `main.js` `switchScene()` |
 | `la_deepseek_api_key` | AI API Key | `main.js` AI 答疑逻辑 |
+| `la_lecture_basic_collapsed` | `'1'`/`'0'` 基础讲解折叠 | `scene-base.js` `_buildLecturePanel()` |
+| `la_lecture_ai_collapsed` | `'1'`/`'0'` AI 答疑折叠 | `scene-base.js` `_buildLecturePanel()` |
+| `la_lecture_subpanel_order` | `['basic','ai']` 或 `['ai','basic']` | `scene-base.js` `_buildLecturePanel()` |
 
 **重置方法**：控制台 `localStorage.clear(); location.reload();`
 
@@ -163,6 +166,31 @@ _showPanel(id) {
 **根因**：CSS `transition: width 0.25s` 和 JS `el.style.width = 'Xpx'` 叠加。
 
 **修复**：resize 手柄的 `mousedown` 事件中临时禁用 transition（`el.style.transition = 'none'`）。
+
+### 模式 5：ResizeObserver 打断 CSS transition 导致 canvas 跳动
+
+**症状**：折叠/展开左右栏时，3D 画面跳变无动画。
+
+**根因**：ResizeObserver 回调在浏览器 `layout→paint` 夹缝中执行。
+此时调用 `renderer.setSize()` 触发 WebGL framebuffer resize，
+打断当前帧 CSS transition 的 paint，导致过渡帧丢失。
+
+**修复**：废弃 ResizeObserver，将 `resize()` 放入 `animate()` 渲染循环开头。
+每帧渲染前同步 canvas 尺寸，CSS transition 自然逐帧跟随。
+`renderer.setSize()` 在尺寸未变时内部短路，无性能影响。
+
+```js
+// ❌ 错误：ResizeObserver 观察 viewer/dock-zone
+new ResizeObserver(() => resize()).observe(viewer);
+
+// ✅ 正确：渲染循环中每帧检查
+function animate() {
+    requestAnimationFrame(animate);
+    resize();  // 每帧同步
+    controls.update();
+    renderer.render(scene, camera);
+}
+```
 
 ## 调试指南
 
