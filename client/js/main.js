@@ -348,7 +348,11 @@ window.addEventListener('resize', resize);
 
 // 监听 viewer 尺寸变化，与列 CSS transition 同步缩放
 // 只观察 viewer 一个元素，避免之前 4 个 dock zone 观察者的连锁触发
-new ResizeObserver(() => resize()).observe(viewer);
+// RAF 包装至关重要：renderer.setSize() 若在 ResizeObserver 回调中同步调用，
+// 会打断当前帧的 CSS transition paint，导致过渡动画中间帧被跳过（画面跳动）
+new ResizeObserver(() => {
+    requestAnimationFrame(() => resize());
+}).observe(viewer);
 
 resize();
 
@@ -508,15 +512,12 @@ function initSidebarToggle() {
         const collapsed = leftCol.classList.toggle('collapsed');
         setCollapsed(leftCol, toggleLeft, collapsed, '▶', '◀');
         save();
-        // 等 CSS transition 结束后更新 canvas 尺寸
-        setTimeout(() => resize(), 300);
     });
 
     toggleRight.addEventListener('click', () => {
         const collapsed = rightCol.classList.toggle('collapsed');
         setCollapsed(rightCol, toggleRight, collapsed, '◀', '▶');
         save();
-        setTimeout(() => resize(), 300);
     });
 }
 

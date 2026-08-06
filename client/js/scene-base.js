@@ -38,9 +38,15 @@ export class SceneRenderer {
         this.threeScene.add(this.sceneObjects);
         this._isInitialLoad = true;
         this._cachedLectureKey = null;
-        this._cachedLectureHTML = null;
         this._chatHistory = [];          // AI 聊天历史
-        this._lectureCollapsed = false;  // 基础讲解折叠状态
+        this._basicCollapsed = false;   // 基础讲解折叠状态
+        this._aiCollapsed = false;      // AI 答疑折叠状态
+        this._subPanelOrder = (() => {  // 子面板排列顺序（持久化）
+            try {
+                const saved = localStorage.getItem('la_lecture_subpanel_order');
+                return saved ? JSON.parse(saved) : ['basic', 'ai'];
+            } catch { return ['basic', 'ai']; }
+        })();
 
         // 初始化默认参数
         if (meta.params) {
@@ -102,7 +108,13 @@ export class SceneRenderer {
         }
         // 清空聊天历史
         this._chatHistory = [];
-        this._lectureCollapsed = false;
+        this._basicCollapsed = false;
+        this._aiCollapsed = false;
+        // 清理子面板拖拽监听
+        if (this._subPanelDragCleanup) {
+            this._subPanelDragCleanup();
+            this._subPanelDragCleanup = null;
+        }
         // 清空动态面板内容
         const pm = _pm();
         if (pm) {
@@ -423,37 +435,40 @@ export class SceneRenderer {
         }
     }
 
-    // ─── 讲解面板（支持 KaTeX 数学公式 + 可折叠）───────
+    // ─── 讲解面板（子面板：基础讲解 + AI 答疑）───────────
 
     _updateLecturePanel(data) {
         const panel = this._panel('lecture');
         if (!panel) return;
-
-        // 无基础讲解内容时，清空讲解区但保留 AI 聊天
-        if (!data.lecture || !data.lecture.sections || data.lecture.sections.length === 0) {
-            panel.show();
-            panel.body.innerHTML = '';
-            this._cachedLectureHTML = null;
-            this._cachedLectureKey = null;
-            this._appendChatUI(panel);
-            return;
-        }
         panel.show();
 
-        // 缓存检查：相同数据跳过渲染
-        const lectureKey = JSON.stringify(data.lecture);
-        if (this._cachedLectureKey === lectureKey && this._cachedLectureHTML) {
-            panel.body.innerHTML = this._cachedLectureHTML;
-            this._bindLectureCollapse(panel);
-            this._appendChatUI(panel);
-            return;
-        }
-        this._cachedLectureKey = lectureKey;
+        // 确保子面板 DOM 结构存在（首次创建）
+        this._ensureSubPanels(panel);
 
-        // 渲染 lecture sections
-        let sectionsHTML = '';
-        data.lecture.sections.forEach(sec => {
-            sectionsHTML += `<div class="lecture-section">
+        // 更新基础讲解内容
+        const basicBody = panel.body.querySelector('[data-sub-panel="basic"] .lecture-sub-panel-body');
+        if (basicBody) {
+            if (data.lecture && data.lecture.sections && data.lecture.sections.length > 0) {
+                const lectureKey = JSON.stringify(data.lecture);
+                if (this._cachedLectureKey !== lectureKey) {
+                    this._cachedLectureKey = lectureKey;
+                    basicBody.innerHTML = this._renderLectureSections(data.lecture.sections);
+                }
+            } else {
+                basicBody.innerHTML = '<p style="color:var(--text-muted);font-size:0.74rem;font-style:italic;padding:4px 0;">暂无讲解内容</p>';
+                this._cachedLectureKey = null;
+            }
+        }
+
+        // 更新 AI 聊天
+        this._appendChatUI(panel);
+    }
+
+    /** 提取 lecture sections 的 KaTeX 渲染为 HTML */
+    _renderLectureSections(sections) {
+        let html = '';
+        sections.forEach(sec => {
+            html += `<div class="lecture-section">
                 <div class="lecture-title">${sec.title}</div>
                 <div class="lecture-content">`;
             const parts = sec.content.split(/(\$\$[\s\S]*?\$\$|\$[^\$]*?\$)/g);
@@ -462,79 +477,228 @@ export class SceneRenderer {
                     const math = part.slice(2, -2).trim();
                     try {
                         if (typeof katex !== 'undefined') {
-                            sectionsHTML += katex.renderToString(math, { displayMode: true, throwOnError: false });
+                            html += katex.renderToString(math, { displayMode: true, throwOnError: false });
                         } else {
-                            sectionsHTML += `<pre style="color:var(--text-secondary);">${math}</pre>`;
+                            html += `<pre style="color:var(--text-secondary);">${math}</pre>`;
                         }
                     } catch (e) {
-                        sectionsHTML += `<pre style="color:var(--red);">${math}</pre>`;
+                        html += `<pre style="color:var(--red);">${math}</pre>`;
                     }
                 } else if (part.startsWith('$')) {
                     const math = part.slice(1, -1).trim();
                     try {
                         if (typeof katex !== 'undefined') {
-                            sectionsHTML += katex.renderToString(math, { displayMode: false, throwOnError: false });
+                            html += katex.renderToString(math, { displayMode: false, throwOnError: false });
                         } else {
-                            sectionsHTML += `<code>${math}</code>`;
+                            html += `<code>${math}</code>`;
                         }
                     } catch (e) {
-                        sectionsHTML += `<code style="color:var(--red);">${math}</code>`;
+                        html += `<code style="color:var(--red);">${math}</code>`;
                     }
                 } else {
-                    sectionsHTML += part
+                    html += part
                         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                         .replace(/\n/g, '<br>');
                 }
             });
-            sectionsHTML += `</div></div>`;
+            html += `</div></div>`;
         });
-
-        // 构建完整 HTML：折叠栏 + 讲解内容
-        const arrow = this._lectureCollapsed ? '▼' : '▲';
-        const bodyDisplay = this._lectureCollapsed ? 'style="display:none"' : '';
-        const fullHTML =
-            `<div class="lecture-collapse-bar">
-                <button class="lecture-collapse-btn">📖 基础讲解 ${arrow}</button>
-            </div>
-            <div class="lecture-body" ${bodyDisplay}>${sectionsHTML}</div>`;
-
-        this._cachedLectureHTML = fullHTML;
-        panel.body.innerHTML = fullHTML;
-
-        // 绑定折叠事件
-        this._bindLectureCollapse(panel);
-
-        // 追加 AI 聊天 UI
-        this._appendChatUI(panel);
+        return html;
     }
 
-    /** 绑定基础讲解的折叠/展开按钮 */
-    _bindLectureCollapse(panel) {
-        const btn = panel.body.querySelector('.lecture-collapse-btn');
-        if (!btn) return;
-        // 用标记避免重复绑定
-        if (btn.dataset.bound) return;
-        btn.dataset.bound = '1';
+    /** 创建子面板 DOM 结构（仅首次调用） */
+    _ensureSubPanels(panel) {
+        if (panel.body.querySelector('.lecture-sub-panels')) return;
 
-        btn.addEventListener('click', () => {
-            this._lectureCollapsed = !this._lectureCollapsed;
-            const body = panel.body.querySelector('.lecture-body');
-            if (body) {
-                body.style.display = this._lectureCollapsed ? 'none' : '';
+        panel.body.innerHTML = '';
+        const container = document.createElement('div');
+        container.className = 'lecture-sub-panels';
+
+        // 按持久化的顺序创建子面板
+        for (const id of this._subPanelOrder) {
+            if (id === 'basic') {
+                container.appendChild(this._createSubPanel('basic', '📖 基础讲解', this._basicCollapsed));
+            } else if (id === 'ai') {
+                container.appendChild(this._createSubPanel('ai', '🤖 AI 答疑', this._aiCollapsed));
             }
-            btn.textContent = `📖 基础讲解 ${this._lectureCollapsed ? '▼' : '▲'}`;
+        }
+
+        panel.body.appendChild(container);
+        this._bindSubPanelEvents(container);
+    }
+
+    /** 创建单个子面板 DOM */
+    _createSubPanel(id, title, collapsed) {
+        const el = document.createElement('div');
+        el.className = 'lecture-sub-panel' + (collapsed ? ' collapsed' : '');
+        el.dataset.subPanel = id;
+        el.dataset.parentPanel = 'lecture';
+
+        // 标题栏（拖拽把手）
+        const header = document.createElement('div');
+        header.className = 'lecture-sub-panel-header';
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'lecture-sub-panel-title';
+        titleSpan.textContent = title;
+        header.appendChild(titleSpan);
+
+        // 折叠按钮
+        const collapseBtn = document.createElement('button');
+        collapseBtn.className = 'lecture-sub-panel-collapse-btn';
+        collapseBtn.textContent = collapsed ? '▼' : '▲';
+        header.appendChild(collapseBtn);
+
+        el.appendChild(header);
+
+        // 内容区
+        const body = document.createElement('div');
+        body.className = 'lecture-sub-panel-body';
+        el.appendChild(body);
+
+        return el;
+    }
+
+    /** 绑定子面板的折叠事件 + 初始化拖拽排序 */
+    _bindSubPanelEvents(container) {
+        // 标记容器归属
+        container.dataset.subPanelsOf = 'lecture';
+
+        // 折叠按钮
+        container.querySelectorAll('.lecture-sub-panel-collapse-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const subPanel = btn.closest('.lecture-sub-panel');
+                const id = subPanel.dataset.subPanel;
+                subPanel.classList.toggle('collapsed');
+                const collapsed = subPanel.classList.contains('collapsed');
+                btn.textContent = collapsed ? '▼' : '▲';
+
+                if (id === 'basic') this._basicCollapsed = collapsed;
+                if (id === 'ai') this._aiCollapsed = collapsed;
+            });
         });
+
+        // 拖拽排序
+        this._initSubPanelDrag(container);
+    }
+
+    /** 根据 DOM 顺序同步 _subPanelOrder 并持久化 */
+    _syncSubPanelOrder(container) {
+        const ids = [...container.querySelectorAll('.lecture-sub-panel')]
+            .map(el => el.dataset.subPanel)
+            .filter(Boolean);
+        if (ids.length >= 2) {
+            this._subPanelOrder = ids;
+            try {
+                localStorage.setItem('la_lecture_subpanel_order', JSON.stringify(ids));
+            } catch {}
+        }
+    }
+
+    /** 初始化子面板拖拽排序 */
+    _initSubPanelDrag(container) {
+        let dragInfo = null;
+
+        const onMouseDown = (e) => {
+            // 只响应子面板标题栏的拖拽
+            const header = e.target.closest('.lecture-sub-panel-header');
+            if (!header) return;
+            // 折叠按钮不触发拖拽
+            if (e.target.closest('.lecture-sub-panel-collapse-btn')) return;
+
+            const subPanel = header.closest('.lecture-sub-panel');
+            if (!subPanel) return;
+            // 只允许同容器内的子面板拖拽
+            if (subPanel.dataset.parentPanel !== container.dataset.subPanelsOf) return;
+
+            e.preventDefault();
+
+            dragInfo = {
+                subPanel,
+                startY: e.clientY,
+                moved: false,
+                indicator: null,
+            };
+
+            subPanel.classList.add('dragging');
+        };
+
+        const onMouseMove = (e) => {
+            if (!dragInfo) return;
+
+            const dy = e.clientY - dragInfo.startY;
+            // 死区：移动超过 6px 才开始拖拽
+            if (Math.abs(dy) < 6 && !dragInfo.moved) return;
+            dragInfo.moved = true;
+
+            // 创建插入指示线
+            if (!dragInfo.indicator) {
+                dragInfo.indicator = document.createElement('div');
+                dragInfo.indicator.className = 'sub-panel-insertion-indicator';
+            }
+
+            // 找到鼠标位置对应的插入点
+            const siblings = [...container.querySelectorAll(
+                '.lecture-sub-panel:not(.dragging)'
+            )];
+            let insertBefore = null;
+
+            for (const sib of siblings) {
+                const r = sib.getBoundingClientRect();
+                if (e.clientY < r.top + r.height / 2) {
+                    insertBefore = sib;
+                    break;
+                }
+            }
+
+            if (insertBefore) {
+                container.insertBefore(dragInfo.indicator, insertBefore);
+            } else {
+                container.appendChild(dragInfo.indicator);
+            }
+        };
+
+        const onMouseUp = () => {
+            if (!dragInfo) return;
+
+            const { subPanel, indicator, moved } = dragInfo;
+            subPanel.classList.remove('dragging');
+
+            if (indicator) {
+                if (moved) {
+                    container.insertBefore(subPanel, indicator);
+                    this._syncSubPanelOrder(container);
+                }
+                indicator.remove();
+            }
+
+            dragInfo = null;
+        };
+
+        container.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        // 保存清理函数，供 destroy() 调用
+        this._subPanelDragCleanup = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
     }
 
     // ─── AI 聊天 UI ────────────────────────────────────────
 
     /**
-     * 在讲解面板底部追加聊天界面。
-     * 每次 _updateLecturePanel 后调用，确保 innerHTML 不会意外清除聊天 UI。
+     * 在 AI 答疑子面板中追加聊天界面。
+     * 每次 _updateLecturePanel 后调用，挂载到 [data-sub-panel="ai"] 内部。
      */
     _appendChatUI(panel) {
+        // 定位 AI 子面板内容区
+        const aiBody = panel.body.querySelector('[data-sub-panel="ai"] .lecture-sub-panel-body');
+        if (!aiBody) return;
+
         // 如果聊天容器已存在且仍在 DOM 中，只刷新消息渲染
-        let container = panel.body.querySelector('.ai-chat-container');
+        let container = aiBody.querySelector('.ai-chat-container');
         if (!container) {
             container = document.createElement('div');
             container.className = 'ai-chat-container';
@@ -622,7 +786,7 @@ export class SceneRenderer {
             inputRow.appendChild(input);
             inputRow.appendChild(btn);
             container.appendChild(inputRow);
-            panel.body.appendChild(container);
+            aiBody.appendChild(container);
         }
 
         this._renderChatMessages(container.querySelector('.ai-chat-messages'));

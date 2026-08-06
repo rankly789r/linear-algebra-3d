@@ -979,6 +979,110 @@ body.is-dragging #right-column.no-panels #dock-right {
     margin-bottom: 4px;
 }
 
+/* ── 讲解子面板（基础讲解 / AI 答疑）── */
+.lecture-sub-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.lecture-sub-panel {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.lecture-sub-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background: var(--bg-tertiary);
+    user-select: none;
+    cursor: grab;
+}
+
+.lecture-sub-panel-header:active {
+    cursor: grabbing;
+}
+
+.lecture-sub-panel-title {
+    flex: 1;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.lecture-sub-panel-swap-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 0.7rem;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.lecture-sub-panel-swap-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.lecture-sub-panel-collapse-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 0.6rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: color 0.15s;
+}
+
+.lecture-sub-panel-collapse-btn:hover {
+    color: var(--text-primary);
+}
+
+.lecture-sub-panel-body {
+    padding: 8px 10px;
+    overflow-y: auto;
+    max-height: 420px;
+    transition: max-height 0.2s ease, padding 0.2s ease;
+}
+
+.lecture-sub-panel.collapsed .lecture-sub-panel-body {
+    max-height: 0 !important;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
+/* 子面板拖拽排序 */
+.lecture-sub-panel.dragging {
+    opacity: 0.35;
+}
+
+.sub-panel-insertion-indicator {
+    height: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(76, 201, 240, 0.55);
+    flex-shrink: 0;
+    pointer-events: none;
+    transition: none;
+}
+
 .lecture-content strong {
     color: var(--text-primary);
 }
