@@ -405,7 +405,7 @@ class DockZone {
     }
 
     _updateEmptyState() {
-        // 全部隐藏也算空（用户通过可见性菜单关闭了所有面板）
+        // 全部隐藏也算空（用于 dock zone 自身的显示状态）
         const allHidden = this.panels.length > 0
             && this.panels.every(p => p.el && p.el.style.display === 'none');
         const effectivelyEmpty = this.isEmpty() || allHidden;
@@ -415,10 +415,11 @@ class DockZone {
         } else {
             this.el.classList.remove('empty');
         }
-        // 同步父级侧栏可见性：空列应完全隐藏，不占空间
+        // 同步父级侧栏可见性：只有真正无面板（dock 未注册任何面板）才隐藏整列
+        // 用户通过菜单全部隐藏时不能隐藏列——否则 👁 按钮随 #scene-info-header 消失，无法恢复
         const col = this.el.parentElement;
         if (col && (col.id === 'left-column' || col.id === 'right-column')) {
-            if (effectivelyEmpty) {
+            if (this.isEmpty()) {
                 col.classList.add('no-panels');
             } else {
                 col.classList.remove('no-panels');

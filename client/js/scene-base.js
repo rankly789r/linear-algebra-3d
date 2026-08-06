@@ -39,8 +39,14 @@ export class SceneRenderer {
         this._isInitialLoad = true;
         this._cachedLectureKey = null;
         this._chatHistory = [];          // AI 聊天历史
-        this._basicCollapsed = false;   // 基础讲解折叠状态
-        this._aiCollapsed = false;      // AI 答疑折叠状态
+        this._basicCollapsed = (() => {  // 基础讲解折叠状态（持久化）
+            try { return localStorage.getItem('la_lecture_basic_collapsed') === '1'; }
+            catch { return false; }
+        })();
+        this._aiCollapsed = (() => {     // AI 答疑折叠状态（持久化）
+            try { return localStorage.getItem('la_lecture_ai_collapsed') === '1'; }
+            catch { return false; }
+        })();
         this._subPanelOrder = (() => {  // 子面板排列顺序（持久化）
             try {
                 const saved = localStorage.getItem('la_lecture_subpanel_order');
@@ -108,8 +114,6 @@ export class SceneRenderer {
         }
         // 清空聊天历史
         this._chatHistory = [];
-        this._basicCollapsed = false;
-        this._aiCollapsed = false;
         // 清理子面板拖拽监听
         if (this._subPanelDragCleanup) {
             this._subPanelDragCleanup();
@@ -573,8 +577,14 @@ export class SceneRenderer {
                 const collapsed = subPanel.classList.contains('collapsed');
                 btn.textContent = collapsed ? '▼' : '▲';
 
-                if (id === 'basic') this._basicCollapsed = collapsed;
-                if (id === 'ai') this._aiCollapsed = collapsed;
+                if (id === 'basic') {
+                    this._basicCollapsed = collapsed;
+                    try { localStorage.setItem('la_lecture_basic_collapsed', collapsed ? '1' : '0'); } catch {}
+                }
+                if (id === 'ai') {
+                    this._aiCollapsed = collapsed;
+                    try { localStorage.setItem('la_lecture_ai_collapsed', collapsed ? '1' : '0'); } catch {}
+                }
             });
         });
 
