@@ -172,21 +172,34 @@ export class MatrixMultiplyRenderer extends SceneRenderer {
             });
         }
 
-        // ─── 标签 sprite ───────────────────────────────
-        const labelCanvas = document.createElement('canvas');
-        labelCanvas.width = 512; labelCanvas.height = 48;
-        const ctx = labelCanvas.getContext('2d');
-        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('原始 □', 64, 30);
-        ctx.fillStyle = '#4cc9f0'; ctx.fillText('B□', 128 + sep * 40, 30);
-        ctx.fillStyle = '#06d6a0'; ctx.fillText('A(B□)', 128 + sep * 80, 30);
-        ctx.fillStyle = '#ffd166'; ctx.fillText('(AB)□', 128 + sep * 120, 30);
-        const texture = new THREE.CanvasTexture(labelCanvas);
-        texture.minFilter = THREE.LinearFilter;
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
-        sprite.position.set(0, -2, -1);
-        sprite.scale.set(8, 0.8, 1);
-        group.add(sprite);
+        // ─── 每个形状的独立标签 sprite ──────────────────
+        const labelDefs = [
+            { text: '原始', color: 0xffffff, shapeIdx: 0 },
+            { text: 'B', color: 0x4cc9f0, shapeIdx: 1 },
+            { text: 'A(B)', color: 0x06d6a0, shapeIdx: 2 },
+            { text: 'AB', color: 0xffd166, shapeIdx: 3 },
+        ];
+        labelDefs.forEach(def => {
+            if (!this._animShapes[def.shapeIdx]) return;
+            const labelCanvas = document.createElement('canvas');
+            labelCanvas.width = 192; labelCanvas.height = 48;
+            const ctx = labelCanvas.getContext('2d');
+            ctx.fillStyle = '#' + def.color.toString(16).padStart(6, '0');
+            ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(def.text, 96, 24);
+            const texture = new THREE.CanvasTexture(labelCanvas);
+            texture.minFilter = THREE.LinearFilter;
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+            // 初始位置：形状中心下方
+            const shape = this._animShapes[def.shapeIdx];
+            const cx = shape.original.reduce((s, v) => s + v[0], 0) / shape.original.length;
+            const minY = Math.min(...shape.original.map(v => v[1]));
+            sprite.position.set(cx, minY - 0.7, -1);
+            sprite.scale.set(1.8, 0.45, 1);
+            group.add(sprite);
+            shape.labelSprite = sprite;
+        });
 
         // ─── 动画按钮 + 立即显示最终状态 ─────────────────
         this._addAnimationButton();
@@ -249,7 +262,7 @@ export class MatrixMultiplyRenderer extends SceneRenderer {
     _interpolateToT(t) {
         // 插值形状（每个形状独立插值）
         if (this._animShapes) {
-            this._animShapes.forEach(({ wire, face, original, target }) => {
+            this._animShapes.forEach(({ wire, face, original, target, labelSprite }) => {
                 const interp = original.map((v, i) => [
                     v[0] + (target[i][0] - v[0]) * t,
                     v[1] + (target[i][1] - v[1]) * t,
@@ -257,6 +270,12 @@ export class MatrixMultiplyRenderer extends SceneRenderer {
                 ]);
                 wire.updateVertices(interp);
                 face.updateVertices(interp);
+                // 标签吸附：跟随形状重心移动
+                if (labelSprite) {
+                    const cx = interp.reduce((s, v) => s + v[0], 0) / interp.length;
+                    const minY = Math.min(...interp.map(v => v[1]));
+                    labelSprite.position.set(cx, minY - 0.7, -1);
+                }
             });
         }
 

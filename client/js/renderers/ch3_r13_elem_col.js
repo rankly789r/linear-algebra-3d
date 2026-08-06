@@ -126,7 +126,7 @@ export class Ch3R13ElemColRenderer extends SceneRenderer {
             group.add(wire);
             group.add(face);
 
-            this._animShapes.push({ wire, face, unitVerts, transformedVerts });
+            this._animShapes.push({ wire, face, unitVerts, transformedVerts, labelSprite: null });
 
             // 箭头 A → A·E
             if (idx < n - 1) {
@@ -174,9 +174,14 @@ export class Ch3R13ElemColRenderer extends SceneRenderer {
             const texture2 = new THREE.CanvasTexture(labelCanvas);
             texture2.minFilter = THREE.LinearFilter;
             const sprite2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture2, transparent: true }));
-            sprite2.position.set(offsetX, is3D ? -2.8 : -2.0, -1);
+            // 初始位置基于单位形状重心 + 底部偏移（动画中会跟随形状更新）
+            const initCx = unitVerts.reduce((s, v) => s + v[0], 0) / unitVerts.length;
+            const initMinY = Math.min(...unitVerts.map(v => v[1]));
+            sprite2.position.set(initCx, initMinY - 0.7, -1);
             sprite2.scale.set(is3D ? 3 : 2.5, 0.6, 1);
             group.add(sprite2);
+            // 存储引用以便在 _interpolateToT 中更新标签位置
+            this._animShapes[this._animShapes.length - 1].labelSprite = sprite2;
         });
 
         this._addAnimationButton();
@@ -236,7 +241,7 @@ export class Ch3R13ElemColRenderer extends SceneRenderer {
 
     _interpolateToT(t) {
         if (!this._animShapes) return;
-        this._animShapes.forEach(({ wire, face, unitVerts, transformedVerts }) => {
+        this._animShapes.forEach(({ wire, face, unitVerts, transformedVerts, labelSprite }) => {
             const interp = unitVerts.map((v, i) => [
                 v[0] + (transformedVerts[i][0] - v[0]) * t,
                 v[1] + (transformedVerts[i][1] - v[1]) * t,
@@ -244,6 +249,12 @@ export class Ch3R13ElemColRenderer extends SceneRenderer {
             ]);
             wire.updateVertices(interp);
             face.updateVertices(interp);
+            // 标签吸附：跟随形状重心移动
+            if (labelSprite) {
+                const cx = interp.reduce((s, v) => s + v[0], 0) / interp.length;
+                const minY = Math.min(...interp.map(v => v[1]));
+                labelSprite.position.set(cx, minY - 0.7, -1);
+            }
         });
     }
 

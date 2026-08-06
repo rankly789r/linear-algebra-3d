@@ -22,7 +22,7 @@ export class MatrixTransposeRenderer extends SceneRenderer {
         group.add(drawVector(new THREE.Vector3(...vecs.Av), 0x4cc9f0, 'Av'));
 
         // Aᵀw（绿色）
-        group.add(drawVector(new THREE.Vector3(...vecs.ATw), 0x06d6a0, 'Aᵀw'));
+        group.add(drawVector(new THREE.Vector3(...vecs.ATw), 0x06d6a0, 'A^T w'));
 
         // 内积关系虚线
         const ip = sd.inner_product;
@@ -41,19 +41,19 @@ export class MatrixTransposeRenderer extends SceneRenderer {
             ));
         }
 
-        // 标签
+        // 标签（使用 ASCII 兼容字符，避免特殊 Unicode 渲染为空心方框）
         const labelCanvas = document.createElement('canvas');
         labelCanvas.width = 512; labelCanvas.height = 64;
         const ctx = labelCanvas.getContext('2d');
         ctx.fillStyle = '#4cc9f0';
-        ctx.font = 'bold 20px sans-serif';
+        ctx.font = 'bold 18px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`⟨Av, w⟩ = ${ip.Av_dot_w.toFixed(2)}`, 128, 22);
+        ctx.fillText(`<Av, w> = ${ip.Av_dot_w.toFixed(2)}`, 128, 22);
         ctx.fillStyle = '#06d6a0';
-        ctx.fillText(`⟨v, Aᵀw⟩ = ${ip.v_dot_ATw.toFixed(2)}`, 384, 22);
+        ctx.fillText(`<v, A^T w> = ${ip.v_dot_ATw.toFixed(2)}`, 384, 22);
         ctx.fillStyle = '#ffd166';
-        ctx.font = '18px sans-serif';
-        ctx.fillText(`⟨Av,w⟩ = ⟨v,Aᵀw⟩: ${ip.match ? '✓ 成立' : '✗ 不成立'}`, 256, 48);
+        ctx.font = '16px sans-serif';
+        ctx.fillText(`<Av,w> = <v, A^T w>: ${ip.match ? 'OK' : 'X'}`, 256, 48);
 
         const texture = new THREE.CanvasTexture(labelCanvas);
         texture.minFilter = THREE.LinearFilter;

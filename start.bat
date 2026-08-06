@@ -1,96 +1,115 @@
 @echo off
-chcp 65001 >nul
-title 线性代数学习系统 — 启动中...
+title Linear Algebra - Starting...
 
 echo ============================================
-echo   线性代数交互式学习系统
+echo   Linear Algebra Interactive Learning System
+echo   http://localhost:8765
 echo ============================================
 echo.
 
-:: 查找 Python 可执行文件
-set PYTHON_EXE=D:\Users\fkl\anaconda3\envs\xianxingdaishu\python.exe
-set PYTHON_EXE_FALLBACK=D:\Users\fkl\anaconda3\python.exe
+:: ── Clean up old server processes (three layers, most→least specific) ──
+echo [*] Cleaning up old server processes...
 
-if exist "%PYTHON_EXE%" (
-    echo [✓] Python 环境: xianxingdaishu
-    goto :found_python
+set "PROJ_ROOT=%~dp0"
+set "PID_FILE=%PROJ_ROOT%.server.pid"
+
+:: Layer 1: Kill process from PID file (exact match, won't touch other projects)
+if exist "%PID_FILE%" (
+    for /f %%a in (%PID_FILE%) do (
+        echo     Killing server from PID file (PID=%%a)
+        taskkill /F /PID %%a >nul 2>&1
+    )
+    del "%PID_FILE%" >nul 2>&1
 )
 
-if exist "%PYTHON_EXE_FALLBACK%" (
-    echo [!] 未找到 xianxingdaishu 环境，使用 base 环境
-    set PYTHON_EXE=%PYTHON_EXE_FALLBACK%
-    goto :found_python
+:: Layer 2: Kill anything on port 8765 (port-specific, unlikely to conflict)
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8765.*LISTENING" 2^>nul') do (
+    echo     Killing process on port 8765 (PID=%%a)
+    taskkill /F /PID %%a >nul 2>&1
 )
 
-:: 尝试在 PATH 中找 python
+:: Layer 3: Kill stray python processes whose command line contains THIS project path
+:: Uses project directory as filter — much safer than matching "app.py" generically
+set "PROJ_PATH=%PROJ_ROOT:\=\\%"
+powershell -Command ^
+    "$procs = Get-WmiObject Win32_Process -Filter \"name='python.exe'\" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('%PROJ_ROOT%') }; ^
+     if ($procs) { $procs | ForEach-Object { Write-Host \"    Killing stray python PID=$($_.ProcessId)\"; Stop-Process -Id $_.ProcessId -Force } }" 2>nul
+
+timeout /t 2 /nobreak >nul
+
+:: ── Find Python ──
+:: Try conda run first (portable), then direct path (fallback), then system python (last resort)
+set "PYTHON_EXE="
+
+:: Method 1: conda run (works on any machine with conda on PATH)
+where conda >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [*] Using: conda run -n xianxingdaishu python
+    set "USE_CONDA_RUN=1"
+    goto :start_server
+)
+
+:: Method 2: Direct conda env path (user-specific fallback)
+if exist "D:\Users\fkl\anaconda3\envs\xianxingdaishu\python.exe" (
+    set "PYTHON_EXE=D:\Users\fkl\anaconda3\envs\xianxingdaishu\python.exe"
+    echo [*] Python: %PYTHON_EXE%
+    goto :start_server
+)
+
+:: Method 3: System python (last resort — may lack numpy/scipy)
 where python >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [!] 使用 PATH 中的 Python
-    set PYTHON_EXE=python
-    goto :found_python
+    for /f "delims=" %%a in ('where python') do set "PYTHON_EXE=%%a"
+    echo [!] Using system python: %PYTHON_EXE%
+    echo [!] May lack dependencies — consider running setup.bat
+    goto :start_server
 )
 
-echo [✗] 未找到 Python！请先运行 setup.bat 安装环境。
-echo.
+echo [ERROR] Python not found. Please run setup.bat first.
 pause
 exit /b 1
 
-:found_python
-echo [✓] Python: %PYTHON_EXE%
-echo.
-
-:: 检查 app.py 是否存在
-if not exist "%~dp0app.py" (
-    echo [✗] 未找到 app.py，请检查工作目录。
+:start_server
+if not exist "%PROJ_ROOT%app.py" (
+    echo [ERROR] app.py not found. Check working directory.
     pause
     exit /b 1
 )
 
-echo [→] 正在启动服务器 http://localhost:8765 ...
-echo.
-echo     提示：在 VSCode 中按 Ctrl+Shift+P
-echo     输入 Simple Browser: Show 然后输入
-echo     http://localhost:8765 即可在 VSCode 内浏览
-echo.
+echo [*] Starting server...
 
-:: 启动服务器（新窗口，可见，方便查看日志和关闭）
-start "线性代数 — 服务器 (关闭此窗口停止服务)" /MIN cmd /c "cd /d "%~dp0" && "%PYTHON_EXE%" app.py"
-
-:: 等待服务器就绪（轮询端口，最多等 10 秒）
-echo [→] 等待服务器就绪...
-set TRIES=0
-:wait_loop
-timeout /t 1 /nobreak >nul
-set /a TRIES+=1
-
-:: 用 PowerShell 检测端口是否在监听
-powershell -Command "try { $c = New-Object System.Net.Sockets.TcpClient('127.0.0.1', 8765); $c.Close(); exit 0 } catch { exit 1 }" >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [✓] 服务器已就绪！
-    goto :open_browser
+:: Start server + capture PID for clean shutdown next time
+if "%USE_CONDA_RUN%"=="1" (
+    :: conda run approach — start via PowerShell to capture PID
+    powershell -Command ^
+        "$p = Start-Process -FilePath 'conda' -ArgumentList 'run','-n','xianxingdaishu','python','app.py' -WorkingDirectory '%PROJ_ROOT%' -WindowStyle Minimized -PassThru; ^
+         $p.Id | Out-File -FilePath '%PID_FILE%' -Encoding ASCII -NoNewline"
+) else (
+    powershell -Command ^
+        "$p = Start-Process -FilePath '%PYTHON_EXE%' -ArgumentList 'app.py' -WorkingDirectory '%PROJ_ROOT%' -WindowStyle Minimized -PassThru; ^
+         $p.Id | Out-File -FilePath '%PID_FILE%' -Encoding ASCII -NoNewline"
 )
 
-if %TRIES% lss 10 goto :wait_loop
-
-echo [!] 服务器启动较慢，继续等待...
+:: Wait for server to be ready (poll port 8765, up to 15 seconds)
+echo [*] Waiting for server...
+for /L %%i in (1,1,15) do (
+    timeout /t 1 /nobreak >nul
+    powershell -Command "try { $c = New-Object System.Net.Sockets.TcpClient('127.0.0.1', 8765); $c.Close(); exit 0 } catch { exit 1 }" >nul 2>&1
+    if not errorlevel 1 goto :ready
+)
+echo [!] Server is slow to start, waiting 5 more seconds...
 timeout /t 5 /nobreak >nul
 
-:open_browser
-:: 尝试用 VSCode 内置浏览器打开（如果安装了 VSCode）
-where code >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [→] 尝试在 VSCode 内置浏览器中打开...
-    :: VSCode 的 Simple Browser 通过命令面板打开，这里用默认浏览器作为后备
-)
+:ready
+echo [OK] Server is ready!
 
-:: 用默认浏览器打开
+:: Open browser
 start "" http://localhost:8765
 
 echo.
 echo ============================================
-echo   系统已启动！
-echo   浏览器: http://localhost:8765
-echo   停止服务: 关闭 "线性代数 — 服务器" 窗口
+echo   Server running at http://localhost:8765
+echo   Close the server window to stop.
 echo ============================================
 echo.
 pause

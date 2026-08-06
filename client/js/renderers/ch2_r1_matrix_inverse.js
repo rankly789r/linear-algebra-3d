@@ -98,20 +98,32 @@ export class MatrixInverseRenderer extends SceneRenderer {
                 this._animShapes.push({ wire, face, original: orig, target: def.target });
             });
 
-            // ─── 标签 ────────────────────────────────
-            const labelCanvas = document.createElement('canvas');
-            labelCanvas.width = 512; labelCanvas.height = 48;
-            const ctx = labelCanvas.getContext('2d');
-            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-            ctx.fillText('原始 □', 85, 30);
-            ctx.fillStyle = '#4cc9f0'; ctx.fillText('A□', 256, 30);
-            ctx.fillStyle = '#06d6a0'; ctx.fillText('A⁻¹(A□) = □', 427, 30);
-            const texture = new THREE.CanvasTexture(labelCanvas);
-            texture.minFilter = THREE.LinearFilter;
-            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
-            sprite.position.set(0, -2, -1);
-            sprite.scale.set(7, 0.7, 1);
-            group.add(sprite);
+            // ─── 每个形状的独立标签 ──────────────────
+            const invLabelDefs = [
+                { text: '原始', color: 0xffffff, shapeIdx: 0 },
+                { text: 'A', color: 0x4cc9f0, shapeIdx: 1 },
+                { text: 'A^{-1}(A)', color: 0x06d6a0, shapeIdx: 2 },
+            ];
+            invLabelDefs.forEach(def => {
+                if (!this._animShapes[def.shapeIdx]) return;
+                const labelCanvas = document.createElement('canvas');
+                labelCanvas.width = 192; labelCanvas.height = 48;
+                const ctx = labelCanvas.getContext('2d');
+                ctx.fillStyle = '#' + def.color.toString(16).padStart(6, '0');
+                ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(def.text, 96, 24);
+                const texture = new THREE.CanvasTexture(labelCanvas);
+                texture.minFilter = THREE.LinearFilter;
+                const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+                const shape = this._animShapes[def.shapeIdx];
+                const cx = shape.original.reduce((s, v) => s + v[0], 0) / shape.original.length;
+                const minY = Math.min(...shape.original.map(v => v[1]));
+                sp.position.set(cx, minY - 0.7, -1);
+                sp.scale.set(2.0, 0.5, 1);
+                group.add(sp);
+                shape.labelSprite = sp;
+            });
 
         } else {
             // ─── 不可逆：两形状 ──────────────────────
@@ -130,20 +142,44 @@ export class MatrixInverseRenderer extends SceneRenderer {
                 this._animShapes.push({ wire, face, original: orig, target: def.target });
             });
 
-            const labelCanvas = document.createElement('canvas');
-            labelCanvas.width = 512; labelCanvas.height = 64;
-            const ctx = labelCanvas.getContext('2d');
-            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-            ctx.fillText('原始 □', 128, 22);
-            ctx.fillStyle = '#ef476f'; ctx.fillText('A□（降维）', 384, 22);
-            ctx.fillStyle = '#ffd166'; ctx.font = '18px sans-serif';
-            ctx.fillText('不可逆 —— 降维过程无法逆转', 256, 50);
-            const texture = new THREE.CanvasTexture(labelCanvas);
-            texture.minFilter = THREE.LinearFilter;
-            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
-            sprite.position.set(0, -2, -1);
-            sprite.scale.set(7, 0.9, 1);
-            group.add(sprite);
+            const singLabelDefs = [
+                { text: '原始', color: 0xffffff, shapeIdx: 0 },
+                { text: 'A（降维）', color: 0xef476f, shapeIdx: 1 },
+            ];
+            singLabelDefs.forEach(def => {
+                if (!this._animShapes[def.shapeIdx]) return;
+                const labelCanvas = document.createElement('canvas');
+                labelCanvas.width = 192; labelCanvas.height = 48;
+                const ctx = labelCanvas.getContext('2d');
+                ctx.fillStyle = '#' + def.color.toString(16).padStart(6, '0');
+                ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(def.text, 96, 24);
+                const texture = new THREE.CanvasTexture(labelCanvas);
+                texture.minFilter = THREE.LinearFilter;
+                const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+                const shape = this._animShapes[def.shapeIdx];
+                const cx = shape.original.reduce((s, v) => s + v[0], 0) / shape.original.length;
+                const minY = Math.min(...shape.original.map(v => v[1]));
+                sp.position.set(cx, minY - 0.7, -1);
+                sp.scale.set(2.2, 0.55, 1);
+                group.add(sp);
+                shape.labelSprite = sp;
+            });
+
+            // 全局提示文字（不可逆说明）
+            const tipCanvas = document.createElement('canvas');
+            tipCanvas.width = 384; tipCanvas.height = 40;
+            const tipCtx = tipCanvas.getContext('2d');
+            tipCtx.fillStyle = '#ffd166';
+            tipCtx.font = 'bold 18px sans-serif'; tipCtx.textAlign = 'center';
+            tipCtx.fillText('不可逆——降维过程无法逆转', 192, 22);
+            const tipTexture = new THREE.CanvasTexture(tipCanvas);
+            tipTexture.minFilter = THREE.LinearFilter;
+            const tipSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tipTexture, transparent: true }));
+            tipSprite.position.set(0, -3, -1);
+            tipSprite.scale.set(5, 0.55, 1);
+            group.add(tipSprite);
         }
 
         // ─── 动画按钮 + 立即显示最终状态 ─────────────────
@@ -206,7 +242,7 @@ export class MatrixInverseRenderer extends SceneRenderer {
 
     _interpolateToT(t) {
         if (!this._animShapes) return;
-        this._animShapes.forEach(({ wire, face, original, target }) => {
+        this._animShapes.forEach(({ wire, face, original, target, labelSprite }) => {
             const interp = original.map((v, i) => [
                 v[0] + (target[i][0] - v[0]) * t,
                 v[1] + (target[i][1] - v[1]) * t,
@@ -214,6 +250,12 @@ export class MatrixInverseRenderer extends SceneRenderer {
             ]);
             wire.updateVertices(interp);
             face.updateVertices(interp);
+            // 标签吸附：跟随形状重心
+            if (labelSprite) {
+                const cx = interp.reduce((s, v) => s + v[0], 0) / interp.length;
+                const minY = Math.min(...interp.map(v => v[1]));
+                labelSprite.position.set(cx, minY - 0.7, -1);
+            }
         });
     }
 
