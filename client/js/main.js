@@ -68,6 +68,10 @@ window.panelManager = panelManager;
         <button class="scene-btn" data-scene="ch3_r6_homogeneous">3.6 齐次 vs 非齐次</button>
         <button class="scene-btn" data-scene="ch3_r7_rank_solution">3.7 秩与解的关系</button>
 
+        <div class="menu-label" style="font-size:0.7rem;opacity:0.7;margin-top:2px;">初等变换</div>
+        <button class="scene-btn" data-scene="ch3_r12_elem_row">初等矩阵与行变换（左乘）</button>
+        <button class="scene-btn" data-scene="ch3_r13_elem_col">初等矩阵与列变换（右乘）</button>
+
         <div class="menu-label">矩阵计算工具</div>
         <button class="scene-btn" data-scene="matrix_calculator">矩阵计算器</button>
     `;
@@ -112,6 +116,8 @@ import { DetPropertiesRenderer } from './renderers/ch1_r2_det_properties.js';
 import { MatrixMultiplyRenderer } from './renderers/ch2_r0_matrix_multiply.js';
 import { MatrixInverseRenderer } from './renderers/ch2_r1_matrix_inverse.js';
 import { MatrixTransposeRenderer } from './renderers/ch2_r2_matrix_transpose.js';
+import { Ch3R12ElemRowRenderer } from './renderers/ch3_r12_elem_row.js';
+import { Ch3R13ElemColRenderer } from './renderers/ch3_r13_elem_col.js';
 
 const SCENE_RENDERERS = {
     'ch0_r0_matrix_columns': MatrixColumnsRenderer,
@@ -132,6 +138,8 @@ const SCENE_RENDERERS = {
     'ch2_r0_matrix_multiply': MatrixMultiplyRenderer,
     'ch2_r1_matrix_inverse': MatrixInverseRenderer,
     'ch2_r2_matrix_transpose': MatrixTransposeRenderer,
+    'ch3_r12_elem_row': Ch3R12ElemRowRenderer,
+    'ch3_r13_elem_col': Ch3R13ElemColRenderer,
 };
 
 // ─── Three.js 初始化 ─────────────────────────────────────
@@ -837,6 +845,45 @@ function getSceneMeta(sceneName) {
                 { label: '非方阵乘法', type: 'unique', params: { operation:'multiply', A_rows:2,A_cols:3, B_rows:3,B_cols:2, matrix_A:[[1,0,2],[0,3,1]], matrix_B:[[1,0],[2,1],[0,3]] } },
                 { label: '奇异矩阵（不可逆）', type: 'none', params: { operation:'inverse', A_rows:2,A_cols:2, matrix_A:[[1,2],[2,4]] } },
                 { label: '行列式计算', type: 'unique', params: { operation:'determinant', A_rows:3,A_cols:3, matrix_A:[[2,1,0],[1,3,1],[0,1,2]] } },
+            ]
+        },
+        'ch3_r12_elem_row': {
+            id: 'ch3_r12_elem_row',
+            title: '初等矩阵与行变换（左乘）',
+            description: '左乘初等矩阵 = 行变换。观察三种初等矩阵（交换/倍乘/倍加）对 3D 形状的几何效果。',
+            params: {
+                dim: { label: '矩阵维度', type: 'choice', default: 3, options: [2, 3] },
+                elem_type: { label: '初等变换类型', type: 'choice', default: 'swap', options: ['swap', 'scale', 'add'] },
+                i: { label: '行索引 i（0-based）', type: 'int', default: 0, min: 0, max: 2, step: 1 },
+                j: { label: '行索引 j（0-based）', type: 'int', default: 1, min: 0, max: 2, step: 1 },
+                k: { label: '倍数 k', type: 'float', default: 2.0, min: -5.0, max: 5.0, step: 0.1 },
+                matrix_A: { label: '矩阵 A', type: 'matrix', rows: 3, cols: 3, default: [[1,0,0],[0,1,0],[0,0,1]] },
+            },
+            presets: [
+                { label: '交换前两行（翻转）', type: 'unique', params: { dim:3, elem_type:'swap', i:0, j:1, k:1, matrix_A:[[1,0,0],[0,1,0],[0,0,1]] } },
+                { label: '第0行×2（拉伸）', type: 'unique', params: { dim:3, elem_type:'scale', i:0, j:0, k:2, matrix_A:[[1,0,0],[0,1,0],[0,0,1]] } },
+                { label: '第1行+第0行×1.5（剪切）', type: 'unique', params: { dim:3, elem_type:'add', i:1, j:0, k:1.5, matrix_A:[[1,0,0],[0,1,0],[0,0,1]] } },
+                { label: '2×2 行交换', type: 'unique', params: { dim:2, elem_type:'swap', i:0, j:1, matrix_A:[[2,1],[0,3]] } },
+                { label: '2×2 剪切', type: 'unique', params: { dim:2, elem_type:'add', i:1, j:0, k:1, matrix_A:[[2,1],[0,3]] } },
+            ]
+        },
+        'ch3_r13_elem_col': {
+            id: 'ch3_r13_elem_col',
+            title: '初等矩阵与列变换（右乘）',
+            description: '右乘初等矩阵 = 列变换。对比左乘和右乘对 3D 形状的不同效果。右乘改变定义域的坐标（基的选择）。',
+            params: {
+                dim: { label: '矩阵维度', type: 'choice', default: 3, options: [2, 3] },
+                elem_type: { label: '初等变换类型', type: 'choice', default: 'swap', options: ['swap', 'scale', 'add'] },
+                i: { label: '列索引 i（0-based）', type: 'int', default: 0, min: 0, max: 2, step: 1 },
+                j: { label: '列索引 j（0-based）', type: 'int', default: 1, min: 0, max: 2, step: 1 },
+                k: { label: '倍数 k', type: 'float', default: 2.0, min: -5.0, max: 5.0, step: 0.1 },
+                matrix_A: { label: '矩阵 A', type: 'matrix', rows: 3, cols: 3, default: [[1,0,0],[0,2,0],[0,0,1]] },
+            },
+            presets: [
+                { label: '交换前两列（翻转）', type: 'unique', params: { dim:3, elem_type:'swap', i:0, j:1, matrix_A:[[1,0,0],[0,2,0],[0,0,1]] } },
+                { label: '第0列×2（拉伸）', type: 'unique', params: { dim:3, elem_type:'scale', i:0, k:2, matrix_A:[[1,0,0],[0,2,0],[0,0,1]] } },
+                { label: '第1列+第0列×1.5（剪切）', type: 'unique', params: { dim:3, elem_type:'add', i:1, j:0, k:1.5, matrix_A:[[1,0,0],[0,2,0],[0,0,1]] } },
+                { label: '2×2 列交换', type: 'unique', params: { dim:2, elem_type:'swap', i:0, j:1, matrix_A:[[2,1],[0,3]] } },
             ]
         },
     };

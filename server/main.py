@@ -38,6 +38,8 @@ from server.scenes.ch1_r2_det_properties import Ch1R2DetProperties
 from server.scenes.ch2_r0_matrix_multiply import Ch2R0MatrixMultiply
 from server.scenes.ch2_r1_matrix_inverse import Ch2R1MatrixInverse
 from server.scenes.ch2_r2_matrix_transpose import Ch2R2MatrixTranspose
+from server.scenes.ch3_r12_elem_row import Ch3R12ElemRow
+from server.scenes.ch3_r13_elem_col import Ch3R13ElemCol
 
 SCENE_REGISTRY = {
     "ch0_r0_matrix_columns": Ch0R0MatrixColumns,
@@ -58,6 +60,8 @@ SCENE_REGISTRY = {
     "ch2_r0_matrix_multiply": Ch2R0MatrixMultiply,
     "ch2_r1_matrix_inverse": Ch2R1MatrixInverse,
     "ch2_r2_matrix_transpose": Ch2R2MatrixTranspose,
+    "ch3_r12_elem_row": Ch3R12ElemRow,
+    "ch3_r13_elem_col": Ch3R13ElemCol,
 }
 
 # ─── FastAPI 应用 ──────────────────────────────────────────
