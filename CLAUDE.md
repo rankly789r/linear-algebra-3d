@@ -2,7 +2,7 @@
 
 > **给未来的 AI（包括失忆后的自己）：阅读此文件以完全恢复项目上下文。**
 >
-> 详细架构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，开发指南见 [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md)，场景规划见 [docs/SCENE_PLAN.md](docs/SCENE_PLAN.md)。
+> 详细架构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，开发指南见 [docs/DEV_GUIDE.md](docs/DEV_GUIDE.md)，场景规划见 [docs/SCENE_ANALYSIS.md](docs/SCENE_ANALYSIS.md)（逐节详尽分析），速查见 [docs/SCENE_PLAN.md](docs/SCENE_PLAN.md)。
 
 ## 一、项目起源
 
@@ -43,7 +43,8 @@ xianxingdaishu/
 ├── docs/
 │   ├── ARCHITECTURE.md      ← 面板系统、矩阵模块、数据流详解
 │   ├── DEV_GUIDE.md         ← 如何新增场景、技术栈、参数类型参考
-│   ├── SCENE_PLAN.md        ← 第1~3章全部场景规划（已有+建议新增29个）
+│   ├── SCENE_ANALYSIS.md     ← 第1~3章逐节详尽分析（教材对照，31场景全规划）
+│   ├── SCENE_PLAN.md         ← 场景规划速查（已被 SCENE_ANALYSIS.md 取代）
 │   └── WORK_LOG_2026-08-06.md ← 近期工作总结
 ├── .vscode/
 │   ├── launch.json          ← F5 启动调试
@@ -196,10 +197,28 @@ GET /api/scenes → { success, data: [{id, title, chapter, description, params, 
 
 ## 九、待扩展
 
-### 第1~3章待建场景（详见 docs/SCENE_PLAN.md）
-- [ ] ch1_r3 按行列展开 · ch1_r4 克拉默法则 · ch1_r5 定向 · ch1_r6 det乘积 · ch1_r7 线性相关性
-- [ ] ch2_r3 初等矩阵行变换 · ch2_r4 初等矩阵列变换 · ch2_r5 高斯消元 · ch2_r6 行列视图 · ch2_r7 分块矩阵
-- [ ] ch3_r9 行阶梯形 · ch3_r10 解的结构 · ch3_r11 最小二乘 · ch3_r12 等价矩阵
+### 第1~3章待建场景（详见 docs/SCENE_ANALYSIS.md — 逐节详尽分析）
+
+> ⚠️ **教材纠正**：克拉默法则在教材Ch2§4（非Ch1）；初等矩阵在教材Ch3§2（非Ch2）；Ch3有4小节。
+
+| 优先级 | 场景（共16个待建） | 教材位置 |
+|--------|-------------------|---------|
+| ⭐⭐⭐ | ch1_r3_permutation — 排列、对换与空间定向 | Ch1§2 |
+| ⭐⭐⭐ | ch1_r4_cofactor — 按行列展开的几何 | Ch1§5 |
+| ⭐⭐ | ch1_r5_orientation — 行列式与定向 | Ch1§2/§4 |
+| ⭐⭐ | ch1_r6_det_dependence — 行列式与线性相关性 | Ch1§4 |
+| ⭐⭐⭐ | ch2_r3_ax_eq_b — 行视图与列视图 | Ch2§1 |
+| ⭐⭐⭐ | ch2_r4_cramer — 克拉默法则：解=体积比 | Ch2§4 |
+| ⭐⭐ | ch2_r5_det_product — det(AB)=det(A)det(B) | Ch2§2 |
+| ⭐ | ch2_r6_matrix_power — Aⁿ的几何 | Ch2§2 |
+| ⭐ | ch2_r7_block — 分块矩阵的几何 | Ch2§5 |
+| ⭐⭐⭐ | ch3_r9_gaussian — 高斯消元法的几何过程 | Ch3§1 |
+| ⭐⭐⭐ | ch3_r10_row_echelon — 行阶梯形与主元 | Ch3§1 |
+| ⭐ | ch3_r11_equivalence — 等价矩阵与标准形 | Ch3§1 |
+| ⭐⭐⭐ | ch3_r12_elem_row — 初等矩阵·行变换(左乘) | Ch3§2 |
+| ⭐⭐⭐ | ch3_r13_elem_col — 初等矩阵·列变换(右乘) | Ch3§2 |
+| ⭐⭐⭐ | ch3_r14_solution_structure — 解的结构：特解+零空间 | Ch3§4/Ch4§5 |
+| ⭐⭐ | ch3_r15_least_squares — 最小二乘的几何 | Ch3§4 延伸 |
 
 ### 远期（第4~6章）
 - [ ] 第四章：向量组的线性相关性（极大无关组、基与维数）
