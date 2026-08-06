@@ -46,12 +46,14 @@ export async function computeScene(sceneName, params = {}) {
  * @returns {Promise<Array>}
  */
 /**
- * 调用 AI 答疑 API
+ * 调用 AI 答疑 API（支持 function calling 工具调用）
  * @param {string} sceneName - 场景标识
  * @param {Object} params - 当前场景参数
  * @param {string} message - 用户问题
  * @param {Array} history - 聊天历史 [{role: "user"|"assistant", content: "..."}]
- * @returns {Promise<Object>} {success, data: {reply: "..."}}
+ * @param {string} apiKey - DeepSeek API Key
+ * @returns {Promise<Object>} {success, data: {reply: string, tool_calls: Array|null}}
+ *   tool_calls: null 或 [{action: "set_params", reason: string, params: Object}]
  */
 export async function askAI(sceneName, params, message, history = [], apiKey = '') {
     try {

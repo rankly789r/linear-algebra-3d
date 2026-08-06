@@ -562,4 +562,8 @@ Response: { success: true, data: { reply: "..." } }
 | `innerHTML` 全量替换覆盖动态子元素 | 讲觧面板的动画重播按钮、AI 聊天 UI 消失 | 使用专用容器（如 `[data-section="solution-info"]`），只替换容器内容不触碰 panel.body 其他子元素 |
 | ResizeObserver 打断 CSS transition | 折叠左右栏时 3D 画面跳变无动画 | 废弃 ResizeObserver，将 `resize()` 放入 `animate()` 渲染循环每帧检查。`renderer.setSize()` 尺寸未变时内部短路 |
 | 手写 `new THREE.Sprite()` 做 3D 标注 | 黑底、黑边、被几何体遮挡、`\n` 不换行 | **始终**用 `draw-utils.js` 的 `createLabel(text, position, color)`。它已处理：①手动分行（Canvas fillText 不支持 `\n`）② `premultipliedAlpha: false` 消黑边 ③ `depthTest: false` + `depthWrite: false` + `renderOrder: 999` 防遮挡。`drawVector()` 的标签也走此函数 |
+| Python f-string 中出现 JSON 花括号 `{}` | `ValueError: Invalid format specifier` | f-string 中 `{` 和 `}` 被解析为格式占位符。用双花括号转义：`{{"key": "value"}}` |
+| `_applyAIParams()` 调用 `buildScene(result.data.scene_data)` | `Cannot read properties of undefined (reading 'mode')` | 正常流程传完整的 `result.data`（包含 `scene_data`、`verification` 等），渲染器内部 `const d = data.scene_data` 期望这个结构。**始终跟 `_computeAndRender()` 中的调用方式一致** |
+| `_applyAIParams()` 方法名凭记忆手写 | `this._xxx is not a function` | 直接复制 `_computeAndRender()` 中的四行更新调用（`_updateSolutionInfo` / `_updateLecturePanel` / `_updateVerifyPanel` / `_updateMatrixDisplay`），不要凭记忆写 |
+| AI API 调用 `max_tokens` 硬编码 | 笔记/长回复被截断 | `max_tokens` 应参数化。同时在 system prompt 中写明字数上限，双保险 |
 

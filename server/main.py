@@ -214,30 +214,45 @@ async def ai_chat(scene_name: str, request: Request):
             "error": f"场景计算失败: {str(e)}",
         }, status_code=500)
 
-    # 4. 提取场景上下文并构建 system prompt
-    scene_data = result.get("scene_data", {})
-    scene_data["matrices"] = scene_data.get("matrices", [])
-    scene_data["solution_info"] = result.get("solution_info", {})
-    scene_data["verification"] = result.get("verification", {})
-
-    # 附加场景元信息
+    # 4. 构建 tool_context（数据源，由 AI 通过工具调用查询，不嵌入 system prompt）
     meta = scene_class.get_meta()
-    scene_data["_scene_title"] = meta.get("title", scene_name)
-    scene_data["_scene_description"] = meta.get("description", "")
+    scene_data = result.get("scene_data", {})
+    tool_context = {
+        "params_meta": {
+            k: {
+                "label": v.get("label", k),
+                "type": v.get("type", "float"),
+                "default": v.get("default"),
+                "min": v.get("min"),
+                "max": v.get("max"),
+                "options": v.get("options"),
+            }
+            for k, v in meta.get("params", {}).items()
+        },
+        "params_current": params_dict,
+        "matrices": scene_data.get("matrices", []),
+        "solution_info": result.get("solution_info", {}),
+        "verification": result.get("verification", {}),
+    }
 
-    system_prompt = build_system_prompt(scene_data)
+    system_prompt = build_system_prompt()
 
     # 5. 构建消息历史 + 当前问题
     messages = list(history) if history else []
     messages.append({"role": "user", "content": message})
 
-    # 6. 调用 DeepSeek API
-    chat_result = await ask_deepseek(system_prompt, messages, api_key=api_key)
+    # 6. 调用 DeepSeek API（带工具调用循环）
+    chat_result = await ask_deepseek(
+        system_prompt, messages, api_key=api_key, tool_context=tool_context
+    )
 
     if chat_result.get("success"):
         return JSONResponse({
             "success": True,
-            "data": {"reply": chat_result["reply"]},
+            "data": {
+                "reply": chat_result["reply"],
+                "tool_calls": chat_result.get("tool_calls"),
+            },
         })
     else:
         return JSONResponse({

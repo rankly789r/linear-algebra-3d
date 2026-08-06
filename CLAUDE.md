@@ -43,7 +43,7 @@ xianxingdaishu/
 ├── server/                  ← Python 后端（FastAPI + NumPy，唯一事实来源）
 │   ├── main.py              ← 场景注册表 + AI 答疑端点
 │   ├── math_engine.py       ← NumPy/SciPy 封装
-│   └── scenes/              ← 26 个场景
+│   └── scenes/              ← 27 个场景
 ├── client/                  ← 浏览器前端（Three.js，只负责画）
 │   ├── index.html           ← 三栏布局 + 4 个 dock zone
 │   └── js/
@@ -52,7 +52,7 @@ xianxingdaishu/
 │       ├── panel-system.js  ← 可拖拽停靠面板
 │       ├── matrix-display.js← 矩阵 KaTeX 渲染（唯一出口）
 │       ├── draw-utils.js    ← 通用 3D 绘图
-│       └── renderers/       ← 26 个场景渲染器
+│       └── renderers/       ← 27 个场景渲染器
 ├── .vscode/                 ← F5 调试配置
 ├── app.py / start.bat / setup.bat
 └── notebooks/
@@ -98,7 +98,7 @@ Response: { success, data: { reply: "..." } }
 
 4 个停靠区：`left`(vertical) / `right`(vertical) / `top`(horizontal) / `bottom`(horizontal)
 
-## 六、场景清单（26个）🟢 = 有动画
+## 六、场景清单（27个）🟢 = 有动画
 
 | 章 | 路由 | 标题 |
 |----|------|------|
@@ -121,6 +121,7 @@ Response: { success, data: { reply: "..." } }
 | Ch3 | `ch3_r4_2x2_system` | 2×2 方程组 |
 | Ch3 | `ch3_r5_3x3_system` | 3×3 方程组（三平面） |
 | Ch3 | `ch3_r6_homogeneous` | 齐次 vs 非齐次 |
+| Ch3 | `ch3_r6b_nullspace` | 零空间（齐次方程组的解） |
 | Ch3 | `ch3_r7_rank_solution` | 秩与解的关系 |
 | Ch3 | `ch3_r7b_col_space` | 列空间与解的存在性 |
 | Ch3 | `ch3_r8_rank_properties` | 秩的性质 |
@@ -145,7 +146,7 @@ Response: { success, data: { reply: "..." } }
 
 ### 新增场景（5 步速查）
 
-> 详细代码模板和风格规范见 [docs/AI_SCENE_DEV_GUIDE.md](docs/AI_SCENE_DEV_GUIDE.md)（AI 审计员撰写，提取了全部 26 个场景的共性模式）。
+> 详细代码模板和风格规范见 [docs/AI_SCENE_DEV_GUIDE.md](docs/AI_SCENE_DEV_GUIDE.md)（AI 审计员撰写，提取了全部 27 个场景的共性模式）。
 
 1. `server/scenes/chX_rY_name.py` — 继承 BaseScene，实现 `get_meta()` + `compute()`
 2. `client/js/renderers/chX_rY_name.js` — 继承 SceneRenderer，实现 `buildScene()`
@@ -199,12 +200,13 @@ Response: { success, data: { reply: "..." } }
 
 ## 十一、AI 角色分工
 
-本项目有 4 个专职 AI 角色，各自维护独立的提示词文件：
+本项目有 5 个专职 AI 角色，各自维护独立的提示词文件：
 
 | 角色 | 提示词 | 技术参考 | 职责 |
 |------|--------|----------|------|
 | 🔍 AI 审计员 | [docs/audit/AI_AUDITOR_PROMPT.md](docs/audit/AI_AUDITOR_PROMPT.md) | — | 代码审查、安全审计、质量把关 |
 | 🖥️ AI 面板负责人 | [docs/AI_PANEL_LEAD_PROMPT.md](docs/AI_PANEL_LEAD_PROMPT.md) | — | 所有 UI/面板/CSS/持久化 |
+| 💬 AI 副面板负责人 | [docs/AI_CHAT_PROMPT.md](docs/AI_CHAT_PROMPT.md) | [server/ai_chat.py](server/ai_chat.py) | AI 答疑/聊天 UI/笔记生成，面板负责人忙时接手面板需求 |
 | 🎓 AI 场景开发者 | [docs/AI_SCENE_DEV_PROMPT.md](docs/AI_SCENE_DEV_PROMPT.md) | [AI_SCENE_DEV_GUIDE.md](docs/AI_SCENE_DEV_GUIDE.md) | 新增/修改数学场景，理解用户困惑并搭建 3D 可视化 |
 | 📦 AI 发版顾问 | — | — | 打包发布规划（待激活） |
 
