@@ -533,6 +533,11 @@ body {
 }
 
 /* 折叠状态 */
+.dock-panel.collapsed {
+    height: auto !important;
+    min-height: unset !important;
+}
+
 .dock-panel.collapsed .panel-body {
     max-height: 0 !important;
     padding-top: 0;
@@ -542,6 +547,10 @@ body {
 
 .dock-panel.collapsed .panel-collapse-btn {
     transform: rotate(-90deg);
+}
+
+.dock-panel.collapsed .panel-resize-handle {
+    display: none !important;
 }
 
 /* ===== 面板内容区样式（复用原有组件） ===== */
