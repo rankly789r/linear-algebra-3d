@@ -80,6 +80,46 @@ export async function askAI(sceneName, params, message, history = [], apiKey = '
     }
 }
 
+/**
+ * 调用 AI 笔记生成 API
+ * @param {string} sceneName
+ * @param {Object} sceneData - 场景计算数据
+ * @param {Array} chatHistory - 聊天历史
+ * @param {string} apiKey
+ * @returns {Promise<Object>} {success, data: {note: "..."}}
+ */
+export async function generateNote(sceneName, sceneData, chatHistory = [], apiKey = '') {
+    try {
+        const response = await fetch(`${API_BASE}/api/notes/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                scene_name: sceneName,
+                scene_data: sceneData,
+                chat_history: chatHistory,
+                api_key: apiKey
+            })
+        });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            return {
+                success: false,
+                data: null,
+                error: errData.error || `HTTP ${response.status}: 笔记生成失败`
+            };
+        }
+
+        return await response.json();
+    } catch (err) {
+        return {
+            success: false,
+            data: null,
+            error: `网络请求失败: ${err.message}`
+        };
+    }
+}
+
 export async function listScenes() {
     try {
         const response = await fetch(`${API_BASE}/api/scenes`);

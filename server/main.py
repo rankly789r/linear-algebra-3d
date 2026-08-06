@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from server.scenes.base import SceneParams
-from server.ai_chat import ask_deepseek, build_system_prompt
+from server.ai_chat import ask_deepseek, build_system_prompt, build_note_system_prompt
 
 # ─── 场景注册表 ───────────────────────────────────────────
 # 格式: "route_name" -> SceneClass
@@ -45,6 +45,8 @@ from server.scenes.ch2_r4_cramer import Ch2R4Cramer
 from server.scenes.ch3_r9_gaussian import Ch3R9Gaussian
 from server.scenes.ch1_r3_permutation import Ch1R3Permutation
 from server.scenes.ch1_r0_equation_to_plane import Ch1R0EquationToPlane
+from server.scenes.ch3_r7b_col_space import Ch3R7BColSpace
+from server.scenes.ch3_r6b_nullspace import Ch3R6BNullspace
 
 SCENE_REGISTRY = {
     "ch0_r0_matrix_columns": Ch0R0MatrixColumns,
@@ -64,6 +66,8 @@ SCENE_REGISTRY = {
     "ch1_r2_det_properties": Ch1R2DetProperties,
     "ch1_r3_permutation": Ch1R3Permutation,
     "ch1_r0_equation_to_plane": Ch1R0EquationToPlane,
+    "ch3_r7b_col_space": Ch3R7BColSpace,
+    "ch3_r6b_nullspace": Ch3R6BNullspace,
     "ch2_r0_matrix_multiply": Ch2R0MatrixMultiply,
     "ch2_r1_matrix_inverse": Ch2R1MatrixInverse,
     "ch2_r2_matrix_transpose": Ch2R2MatrixTranspose,
@@ -239,6 +243,54 @@ async def ai_chat(scene_name: str, request: Request):
         return JSONResponse({
             "success": False,
             "error": chat_result.get("error", "AI 调用失败"),
+        }, status_code=500)
+
+
+@app.post("/api/notes/generate")
+async def generate_note(request: Request):
+    """
+    AI 笔记生成端点。
+    接收场景名、场景数据、聊天历史，调用 DeepSeek 生成结构化学习笔记。
+
+    Body: {scene_name, params, scene_data, chat_history, api_key}
+    """
+    try:
+        body = await request.json()
+        scene_name = body.get("scene_name", "")
+        scene_data = body.get("scene_data", {})
+        chat_history = body.get("chat_history", [])
+        api_key = body.get("api_key", "").strip() or None
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": f"请求解析失败: {str(e)}",
+        }, status_code=400)
+
+    if not api_key:
+        return JSONResponse({
+            "success": False,
+            "error": "请先在设置中填入 DeepSeek API Key",
+        }, status_code=401)
+
+    # 附加场景元信息
+    scene_data["_scene_title"] = scene_data.get("_scene_title", scene_name)
+    scene_data["_scene_description"] = scene_data.get("_scene_description", "")
+
+    system_prompt = build_note_system_prompt(scene_data, chat_history)
+
+    result = await ask_deepseek(system_prompt, [
+        {"role": "user", "content": "请根据以上信息生成学习笔记。"}
+    ], api_key=api_key)
+
+    if result.get("success"):
+        return JSONResponse({
+            "success": True,
+            "data": {"note": result["reply"]},
+        })
+    else:
+        return JSONResponse({
+            "success": False,
+            "error": result.get("error", "AI 调用失败"),
         }, status_code=500)
 
 

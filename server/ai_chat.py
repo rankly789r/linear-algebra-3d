@@ -76,6 +76,22 @@ def build_system_prompt(scene_data: dict) -> str:
 4. 回答简洁有力，一般 150-350 字
 5. 如果学生的问题超出当前场景范围，也可以基于你的线性代数知识回答
 
+=== 修改场景参数（工具调用）===
+如果需要通过修改矩阵参数来演示某个概念（例如展示对角矩阵、奇异矩阵、对称矩阵等），
+请在回复末尾单独一行输出以下 JSON 代码块：
+
+```json
+{"action": "set_params", "reason": "改为对角矩阵以展示...", "params": {"a11": 3, "a12": 0, ...}}
+```
+
+规则：
+- JSON 必须用 ```json ``` 包裹，放在回复最后面
+- reason 字段用一句话解释为什么要改参数
+- params 字段只包含需要修改的参数名和值
+- 只修改与当前场景相关的参数（如 2×2 矩阵场景就只改 a11/a12/a21/a22）
+- 不要捏造不存在的参数名
+- 如果不确定参数名，就不要使用工具调用，只用文字说明
+
 === 格式示例 ===
 学生问："秩是多少？"
 正确回答：系数矩阵 $A$ 的秩为 $r(A) = 2$，增广矩阵的秩也为 $r([A|\\mathbf{{b}}]) = 2$。
@@ -83,6 +99,99 @@ def build_system_prompt(scene_data: dict) -> str:
 $$A = \\begin{{bmatrix}} 2 & -1 \\\\ 1 & 1 \\end{{bmatrix}}, \\quad \\det A = 2 \\times 1 - (-1) \\times 1 = 3 \\neq 0$$
 
 因为 $r(A) = r([A|\\mathbf{{b}}]) = 2 = n$，所以方程组有唯一解。"""
+    return prompt
+
+
+def build_note_system_prompt(scene_data: dict, chat_history: list = None) -> str:
+    """根据场景数据和聊天历史构建笔记生成 system prompt"""
+    matrices = scene_data.get("matrices", [])
+    solution_info = scene_data.get("solution_info", {})
+    title = scene_data.get("_scene_title", "")
+    description = scene_data.get("_scene_description", "")
+
+    # 矩阵信息
+    matrix_text = ""
+    for m in matrices:
+        label = m.get("label", "")
+        symbol = m.get("symbol", "")
+        data = m.get("data", [])
+        matrix_text += f"\n  {label} ({symbol}): {json.dumps(data)}"
+
+    # 解信息
+    sol_text = ""
+    if solution_info:
+        sol_type = solution_info.get("type", "")
+        sol_desc = solution_info.get("description", "")
+        sol_details = solution_info.get("details", {})
+        sol_text = f"\n  解类型: {sol_type}\n  描述: {sol_desc}"
+        if sol_details:
+            sol_text += "\n  " + ", ".join(f"{k}={v}" for k, v in sol_details.items())
+
+    # 聊天上下文
+    chat_text = ""
+    if chat_history:
+        chat_lines = []
+        for msg in chat_history:
+            role = "学生" if msg.get("role") == "user" else "AI"
+            content = msg.get("content", "")[:500]  # 截断长回复
+            chat_lines.append(f"  [{role}]: {content}")
+        chat_text = "\n\n学生与 AI 的交流记录：\n" + "\n".join(chat_lines[-10:])  # 最近10条
+
+    prompt = f"""你是线性代数教学笔记撰写助手。请根据以下信息，撰写一篇结构化的学习笔记。
+
+场景：{title}
+简介：{description}
+
+当前矩阵数据：{matrix_text if matrix_text else "（无）"}
+分析结果：{sol_text if sol_text else "（无）"}
+{chat_text}
+
+=== 笔记格式要求 ===
+请严格按以下 Markdown 模板输出（不要输出模板之外的文字）：
+
+---
+title: "{title}"
+chapter: ""
+date: ""
+tags: [线性代数]
+---
+
+## 一、核心概念
+
+> 一句话总结本节的核心数学思想。
+
+## 二、数学定义
+
+给出本节关键概念的数学定义，使用 LaTeX 公式。
+
+## 三、几何直觉
+
+结合 3D 可视化场景，描述几何含义。解释「为什么」而不仅仅是「是什么」。
+
+## 四、关键公式
+
+列出本节最重要的公式，使用独立 $$ 格式：
+
+$$
+公式
+$$
+
+## 五、常见误区
+
+列举 2-3 个学生容易混淆或犯错的地方，并给出纠正。
+
+## 六、与教材的对应关系
+
+说明本节对应同济大学《线性代数》教材的哪一章哪一节。
+
+=== 写作要求 ===
+1. 使用中文撰写，数学公式使用 LaTeX
+2. 行内公式用单个 $，独立公式用双 $$
+3. 矩阵使用 bmatrix 环境：$$A = \\begin{{bmatrix}} 2 & -1 \\\\ 1 & 1 \\end{{bmatrix}}$$
+4. 绝对禁止使用 \\(...\\) 或 \\[...\\] 格式
+5. 结合当前矩阵数据来写，不要写空泛的理论
+6. 如果有学生与 AI 的交流记录，将交流中澄清的概念融入笔记
+7. 笔记长度控制在 500-1000 字"""
     return prompt
 
 

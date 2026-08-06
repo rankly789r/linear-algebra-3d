@@ -13,8 +13,9 @@
  */
 
 import * as THREE from 'three';
-import { computeScene, askAI } from './api.js';
+import { computeScene, askAI, generateNote } from './api.js';
 import { updateMatrixDisplay } from './matrix-display.js';
+import { saveChat, loadChat, clearChat } from './chat-store.js';
 
 /** 获取 panelManager 单例的便捷方法 */
 function _pm() {
@@ -75,6 +76,8 @@ export class SceneRenderer {
         this._showPanel('lecture');
         this._showPanel('verify');
         this._showPanel('matrix');
+        // 从 IndexedDB 恢复聊天记录
+        this._loadChatHistory();
     }
 
     /** 初次计算并渲染 */
@@ -112,7 +115,10 @@ export class SceneRenderer {
             this._disposeRecursive(child);
             this.sceneObjects.remove(child);
         }
-        // 清空聊天历史
+        // 保存聊天历史到 IndexedDB
+        if (this._chatHistory.length > 0) {
+            saveChat(this.meta.id, this._chatHistory);
+        }
         this._chatHistory = [];
         // 清理子面板拖拽监听
         if (this._subPanelDragCleanup) {
@@ -800,6 +806,24 @@ export class SceneRenderer {
 
     // ─── AI 聊天 UI ────────────────────────────────────────
 
+    /** 从 IndexedDB 恢复聊天记录 */
+    async _loadChatHistory() {
+        try {
+            const msgs = await loadChat(this.meta.id);
+            if (msgs && msgs.length > 0) {
+                this._chatHistory = msgs;
+                // 如果 AI 子面板已经存在，刷新显示
+                const panel = this._panel('lecture');
+                if (panel) {
+                    const messagesDiv = panel.body.querySelector('.ai-chat-messages');
+                    if (messagesDiv) this._renderChatMessages(messagesDiv);
+                }
+            }
+        } catch {
+            // IndexedDB 不可用时静默回退
+        }
+    }
+
     /**
      * 在 AI 答疑子面板中追加聊天界面。
      * 每次 _updateLecturePanel 后调用，挂载到 [data-sub-panel="ai"] 内部。
@@ -833,14 +857,29 @@ export class SceneRenderer {
 
             const exportBtn = document.createElement('button');
             exportBtn.className = 'ai-chat-settings-btn';
-            exportBtn.title = '导出笔记为 Markdown';
-            exportBtn.textContent = '📥';
+            exportBtn.title = 'AI 生成学习笔记';
+            exportBtn.textContent = '🤖';
             exportBtn.style.marginLeft = '2px';
             exportBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this._exportNote();
             });
             headerRow.appendChild(exportBtn);
+
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'ai-chat-settings-btn';
+            clearBtn.title = '清空当前场景的对话';
+            clearBtn.textContent = '🗑';
+            clearBtn.style.marginLeft = '2px';
+            clearBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('确定要清空当前场景的所有对话记录吗？此操作不可撤销。')) {
+                    this._chatHistory = [];
+                    clearChat(this.meta.id);
+                    this._renderChatMessages(container.querySelector('.ai-chat-messages'));
+                }
+            });
+            headerRow.appendChild(clearBtn);
 
             container.appendChild(headerRow);
 
@@ -941,12 +980,19 @@ export class SceneRenderer {
 
             if (msg.role === 'assistant') {
                 // AI 消息需要 KaTeX 渲染
-                bubble.innerHTML = this._renderMarkdown(msg.content);
+                const displayContent = msg.content || '';
+                bubble.innerHTML = this._renderMarkdown(displayContent);
             } else {
                 bubble.textContent = msg.content;
             }
 
             messagesDiv.appendChild(bubble);
+
+            // 工具调用确认卡片
+            if (msg.toolCall && msg.toolCall.action === 'set_params' && msg.toolCall._applied === undefined) {
+                const card = this._createToolCard(msg.toolCall, idx);
+                messagesDiv.appendChild(card);
+            }
         });
 
         // 滚动到底部
@@ -1032,6 +1078,126 @@ export class SceneRenderer {
         return processed;
     }
 
+    /**
+     * 解析 AI 回复中的工具调用（```json {"action": "set_params", ...} ```）
+     * @returns {{ text: string, toolCall: object|null }}
+     */
+    _parseToolCall(reply) {
+        const jsonBlockRe = /```json\s*(\{[^`]*"action"\s*:\s*"set_params"[^`]*\})\s*```/s;
+        const match = reply.match(jsonBlockRe);
+        if (!match) {
+            return { text: reply, toolCall: null };
+        }
+        try {
+            const toolCall = JSON.parse(match[1]);
+            const text = reply.replace(match[0], '').trim();
+            return { text, toolCall };
+        } catch {
+            return { text: reply, toolCall: null };
+        }
+    }
+
+    /**
+     * 创建工具调用确认卡片
+     * @param {Object} toolCall - {action, reason, params}
+     * @param {number} msgIdx - 消息在 _chatHistory 中的索引
+     */
+    _createToolCard(toolCall, msgIdx) {
+        const card = document.createElement('div');
+        card.className = 'ai-tool-card';
+
+        const header = document.createElement('div');
+        header.className = 'ai-tool-card-header';
+        header.textContent = '🤖 AI 建议修改参数';
+        card.appendChild(header);
+
+        const reason = document.createElement('div');
+        reason.className = 'ai-tool-card-reason';
+        reason.textContent = toolCall.reason || '（未说明原因）';
+        card.appendChild(reason);
+
+        const paramsPreview = document.createElement('div');
+        paramsPreview.className = 'ai-tool-card-params';
+        paramsPreview.textContent = Object.entries(toolCall.params || {})
+            .map(([k, v]) => `${k}=${v}`)
+            .join(', ');
+        card.appendChild(paramsPreview);
+
+        const actions = document.createElement('div');
+        actions.className = 'ai-tool-card-actions';
+
+        const applyBtn = document.createElement('button');
+        applyBtn.className = 'ai-tool-apply-btn';
+        applyBtn.textContent = '✓ 应用';
+        applyBtn.addEventListener('click', async () => {
+            applyBtn.disabled = true;
+            applyBtn.textContent = '⏳';
+            ignoreBtn.disabled = true;
+            await this._applyAIParams(toolCall.params, card);
+            // 标记已处理，避免重新渲染时再次出现
+            toolCall._applied = true;
+        });
+
+        const ignoreBtn = document.createElement('button');
+        ignoreBtn.className = 'ai-tool-ignore-btn';
+        ignoreBtn.textContent = '✗ 忽略';
+        ignoreBtn.addEventListener('click', () => {
+            toolCall._applied = true;
+            card.remove();
+        });
+
+        actions.appendChild(applyBtn);
+        actions.appendChild(ignoreBtn);
+        card.appendChild(actions);
+
+        return card;
+    }
+
+    /**
+     * 应用 AI 提议的参数修改（带后端验证）
+     * @param {Object} newParams - AI 提议的参数 {a11: 2, ...}
+     * @param {HTMLElement} cardEl - 确认卡片元素，用于替换为结果
+     */
+    async _applyAIParams(newParams, cardEl) {
+        // 合并新参数到当前参数
+        const merged = { ...this.params, ...newParams };
+
+        try {
+            const result = await computeScene(this.meta.id, merged);
+            if (!result.success) {
+                this._replaceToolCard(cardEl, 'error', `后端验证失败: ${result.error}`);
+                return;
+            }
+
+            // 更新参数
+            Object.assign(this.params, newParams);
+            // 同步 UI 滑块
+            this._syncParamInputs();
+
+            // 更新场景
+            this._lastComputeResult = result.data;
+            this.buildScene(result.data.scene_data);
+            this._updateSolutionPanel(result.data);
+            this._updateLecturePanel(result.data);
+            this._updateVerifyPanel(result.data);
+            this._updateMatrixPanel(result.data);
+
+            this._replaceToolCard(cardEl, 'success', '✓ 参数已应用，验证通过');
+        } catch (err) {
+            this._replaceToolCard(cardEl, 'error', `应用失败: ${err.message}`);
+        }
+    }
+
+    /** 将确认卡片替换为结果消息 */
+    _replaceToolCard(cardEl, type, message) {
+        const result = document.createElement('div');
+        result.className = `ai-tool-result ${type}`;
+        result.textContent = message;
+        if (cardEl.parentNode) {
+            cardEl.parentNode.replaceChild(result, cardEl);
+        }
+    }
+
     /** 发送聊天消息 */
     async _sendChatMessage() {
         const panel = this._panel('lecture');
@@ -1079,7 +1245,12 @@ export class SceneRenderer {
             this._chatHistory.pop();
 
             if (result.success && result.data && result.data.reply) {
-                this._chatHistory.push({ role: 'assistant', content: result.data.reply });
+                const parsed = this._parseToolCall(result.data.reply);
+                this._chatHistory.push({
+                    role: 'assistant',
+                    content: parsed.text,
+                    toolCall: parsed.toolCall,  // null 或 {action, reason, params}
+                });
             } else {
                 this._chatHistory.push({
                     role: 'assistant',
@@ -1261,10 +1432,16 @@ export class SceneRenderer {
 
     // ─── 笔记导出 ──────────────────────────────────────────
 
-    _exportNote() {
+    async _exportNote() {
         const data = this._lastComputeResult;
         if (!data) {
             alert('请先加载场景数据后再导出。');
+            return;
+        }
+
+        const apiKey = localStorage.getItem('la_deepseek_api_key');
+        if (!apiKey) {
+            alert('请先在 AI 答疑设置中填入 DeepSeek API Key。');
             return;
         }
 
@@ -1273,69 +1450,54 @@ export class SceneRenderer {
         const title = this.meta.title || '未命名';
         const safeTitle = title.replace(/[/\\?%*:|"<>]/g, '-');
 
-        let md = `---\ntitle: "${title}"\ndate: ${dateStr}\n---\n\n`;
+        // 构建 scene_data（与 chat 端点一致的格式）
+        const sceneData = {
+            ...data.scene_data,
+            solution_info: data.solution_info,
+            verification: data.verification,
+            lecture: data.lecture,
+            _scene_title: title,
+            _scene_description: this.meta.description || '',
+        };
 
-        // 当前参数
-        if (this.params && Object.keys(this.params).length > 0) {
-            md += '## 当前参数\n\n';
-            for (const [key, val] of Object.entries(this.params)) {
-                const label = this.meta.params?.[key]?.label || key;
-                md += `- **${label}**: ${val}\n`;
-            }
-            md += '\n';
+        // 显示加载状态
+        const panel = this._panel('lecture');
+        const btn = panel?.body.querySelector('.ai-chat-settings-btn[title*="笔记"]');
+        if (btn) {
+            btn.textContent = '⏳';
+            btn.disabled = true;
         }
 
-        // 矩阵数据
-        const matrices = data.scene_data?.matrices;
-        if (matrices && matrices.length > 0) {
-            md += '## 矩阵数据\n\n';
-            for (const m of matrices) {
-                const sym = m.symbol || '';
-                md += `### ${m.label || ''}\n\n`;
-                if (m.data && m.data.length > 0) {
-                    const rows = m.data.map(r =>
-                        r.map(v => (typeof v === 'number' ? parseFloat(v.toFixed(4)) : v)).join(' & ')
-                    );
-                    md += `$$${sym ? sym + ' = ' : ''}\\begin{pmatrix} ${rows.join(' \\\\\\\\ ')} \\end{pmatrix}$$\n\n`;
-                }
+        try {
+            const result = await generateNote(
+                this.meta.id,
+                sceneData,
+                this._chatHistory.filter(m => m.content !== '__LOADING__'),
+                apiKey
+            );
+
+            if (result.success && result.data?.note) {
+                // 触发下载
+                const blob = new Blob([result.data.note], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `线性代数笔记_${safeTitle}_${dateStr}.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } else {
+                alert(`笔记生成失败: ${result.error || 'AI 未返回内容'}`);
+            }
+        } catch (err) {
+            alert(`笔记生成失败: ${err.message}`);
+        } finally {
+            if (btn) {
+                btn.textContent = '🤖';
+                btn.disabled = false;
             }
         }
-
-        // 分析结果
-        const sol = data.solution_info;
-        if (sol) {
-            md += '## 分析结果\n\n';
-            md += `- **解的类型**: ${sol.description || sol.type || '—'}\n`;
-            if (sol.details) {
-                for (const [k, v] of Object.entries(sol.details)) {
-                    md += `- **${k}**: ${v}\n`;
-                }
-            }
-            md += '\n';
-        }
-
-        // 讲解内容
-        const lecture = data.lecture;
-        if (lecture?.sections) {
-            md += '## 讲解内容\n\n';
-            for (const sec of lecture.sections) {
-                md += `### ${sec.title}\n\n${sec.content}\n\n`;
-            }
-        }
-
-        // 截图占位
-        md += '## 截图\n\n![]()\n';
-
-        // 触发下载
-        const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `线性代数笔记_${safeTitle}_${dateStr}.md`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
     }
 
     _disposeRecursive(obj) {
