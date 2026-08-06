@@ -42,6 +42,7 @@ from server.scenes.ch3_r12_elem_row import Ch3R12ElemRow
 from server.scenes.ch3_r13_elem_col import Ch3R13ElemCol
 from server.scenes.ch2_r3_ax_eq_b import Ch2R3AxEqB
 from server.scenes.ch2_r4_cramer import Ch2R4Cramer
+from server.scenes.ch3_r9_gaussian import Ch3R9Gaussian
 
 SCENE_REGISTRY = {
     "ch0_r0_matrix_columns": Ch0R0MatrixColumns,
@@ -66,6 +67,7 @@ SCENE_REGISTRY = {
     "ch2_r4_cramer": Ch2R4Cramer,
     "ch3_r12_elem_row": Ch3R12ElemRow,
     "ch3_r13_elem_col": Ch3R13ElemCol,
+    "ch3_r9_gaussian": Ch3R9Gaussian,
 }
 
 # ─── FastAPI 应用 ──────────────────────────────────────────

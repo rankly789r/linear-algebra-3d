@@ -71,6 +71,7 @@ window.panelManager = panelManager;
         <button class="scene-btn" data-scene="ch3_r7_rank_solution">3.7 秩与解的关系</button>
 
         <div class="menu-label" style="font-size:0.7rem;opacity:0.7;margin-top:2px;">初等变换</div>
+        <button class="scene-btn" data-scene="ch3_r9_gaussian">高斯消元法的几何过程</button>
         <button class="scene-btn" data-scene="ch3_r12_elem_row">初等矩阵与行变换（左乘）</button>
         <button class="scene-btn" data-scene="ch3_r13_elem_col">初等矩阵与列变换（右乘）</button>
 
@@ -122,6 +123,7 @@ import { Ch3R12ElemRowRenderer } from './renderers/ch3_r12_elem_row.js';
 import { Ch3R13ElemColRenderer } from './renderers/ch3_r13_elem_col.js';
 import { Ch2R3AxEqBRenderer } from './renderers/ch2_r3_ax_eq_b.js';
 import { Ch2R4CramerRenderer } from './renderers/ch2_r4_cramer.js';
+import { Ch3R9GaussianRenderer } from './renderers/ch3_r9_gaussian.js';
 
 const SCENE_RENDERERS = {
     'ch0_r0_matrix_columns': MatrixColumnsRenderer,
@@ -146,6 +148,7 @@ const SCENE_RENDERERS = {
     'ch2_r4_cramer': Ch2R4CramerRenderer,
     'ch3_r12_elem_row': Ch3R12ElemRowRenderer,
     'ch3_r13_elem_col': Ch3R13ElemColRenderer,
+    'ch3_r9_gaussian': Ch3R9GaussianRenderer,
 };
 
 // ─── Three.js 初始化 ─────────────────────────────────────
@@ -890,6 +893,30 @@ function getSceneMeta(sceneName) {
                 { label: '无穷解（重合线）', type: 'infinite', params: { a11:1,a12:1,a21:2,a22:2,b1:2,b2:4 } },
                 { label: '垂直相交', type: 'unique', params: { a11:1,a12:0,a21:0,a22:1,b1:2,b2:3 } },
                 { label: '列向量共线（奇异）', type: 'degenerate', params: { a11:2,a12:4,a21:1,a22:2,b1:6,b2:3 } },
+            ]
+        },
+        'ch3_r9_gaussian': {
+            id: 'ch3_r9_gaussian',
+            title: '高斯消元法的几何过程',
+            description: '消元=旋转平面到最简位置，保持交点不变。并排对比消元前后的三平面系统。',
+            params: {
+                a11:{label:'a₁₁',type:'float',default:2,min:-5,max:5,step:0.1},
+                a12:{label:'a₁₂',type:'float',default:1,min:-5,max:5,step:0.1},
+                a13:{label:'a₁₃',type:'float',default:-1,min:-5,max:5,step:0.1},
+                a21:{label:'a₂₁',type:'float',default:-3,min:-5,max:5,step:0.1},
+                a22:{label:'a₂₂',type:'float',default:-1,min:-5,max:5,step:0.1},
+                a23:{label:'a₂₃',type:'float',default:2,min:-5,max:5,step:0.1},
+                a31:{label:'a₃₁',type:'float',default:-2,min:-5,max:5,step:0.1},
+                a32:{label:'a₃₂',type:'float',default:1,min:-5,max:5,step:0.1},
+                a33:{label:'a₃₃',type:'float',default:2,min:-5,max:5,step:0.1},
+                b1:{label:'b₁',type:'float',default:1,min:-10,max:10,step:0.1},
+                b2:{label:'b₂',type:'float',default:6,min:-10,max:10,step:0.1},
+                b3:{label:'b₃',type:'float',default:6,min:-10,max:10,step:0.1},
+            },
+            presets: [
+                { label: '典型3×3方程组', type: 'unique', params: { a11:2,a12:1,a13:-1,a21:-3,a22:-1,a23:2,a31:-2,a32:1,a33:2,b1:1,b2:6,b3:6 } },
+                { label: '唯一解（简单）', type: 'unique', params: { a11:1,a12:1,a13:1,a21:0,a22:1,a23:1,a31:0,a32:0,a33:1,b1:6,b2:3,b3:1 } },
+                { label: '无解', type: 'none', params: { a11:1,a12:1,a13:1,a21:1,a22:1,a23:1,a31:1,a32:1,a33:1,b1:1,b2:2,b3:3 } },
             ]
         },
         'ch3_r12_elem_row': {
