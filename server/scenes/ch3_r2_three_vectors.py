@@ -99,7 +99,7 @@ class Ch3R2ThreeVectors(BaseScene):
                 else:
                     # 用最小二乘判断是否能被线性表示
                     try:
-                        coeffs, _, _, _ = np.linalg.lstsq(prev, col, rcond=None)
+                        coeffs = M.solve_least_squares(prev, col)
                         reconstructed = prev @ coeffs
                         residual = np.linalg.norm(col - reconstructed)
                         if residual < 1e-6:

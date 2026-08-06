@@ -53,7 +53,7 @@ class Ch3R3MatrixRank(BaseScene):
         ], dtype=float)
 
         rank = M.matrix_rank(A)
-        det_A = float(np.linalg.det(A))
+        det_A = M.matrix_determinant(A)
 
         # 单位立方体的 8 个顶点
         cube_vertices = np.array([

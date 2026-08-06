@@ -68,10 +68,6 @@ class Ch1R0DetArea(BaseScene):
         p2 = np.array([v1[0] + v2[0], v1[1] + v2[1], 0])
         p3 = np.array([v2[0], v2[1], 0])
 
-        # 平行四边形的两条对角线
-        diag1_start = [0, 0, 0]
-        diag1_end = [p2[0], p2[1], p2[2]]
-
         relation = "independent"
         if abs(det) < 1e-8:
             relation = "collinear"

@@ -321,8 +321,12 @@ axisGroup.add(createAxis(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 6),
 scene.add(axisGroup);
 
 // XY 参考网格（Z轴向上，地面为XY平面）
+// renderOrder=-1 + depthWrite=false：网格先渲染但不写入深度缓冲，
+// 避免与用户绘制的图形产生 z-fighting 闪烁
 const grid = new THREE.GridHelper(10, 10, 0x333355, 0x222240);
 grid.rotation.x = -Math.PI / 2;
+grid.renderOrder = -1;
+grid.material.depthWrite = false;
 scene.add(grid);
 
 const originDot = new THREE.Mesh(
@@ -583,8 +587,24 @@ async function switchScene(sceneName) {
 
     } catch (err) {
         console.error('场景切换失败:', err);
-        document.getElementById('error-overlay').style.display = 'block';
+        const errorOverlay = document.getElementById('error-overlay');
         document.getElementById('error-message').textContent = `场景加载失败: ${err.message}`;
+        errorOverlay.setAttribute('data-retry-scene', sceneName);
+        errorOverlay.style.display = 'block';
+        // 确保重试/关闭按钮已绑定（首次绑定，后续跳过）
+        if (!errorOverlay._switchSceneRetryBound) {
+            errorOverlay._switchSceneRetryBound = true;
+            document.getElementById('error-retry-btn')?.addEventListener('click', () => {
+                const retryScene = errorOverlay.getAttribute('data-retry-scene');
+                if (retryScene) {
+                    errorOverlay.style.display = 'none';
+                    switchScene(retryScene);
+                }
+            });
+            document.getElementById('error-close-btn')?.addEventListener('click', () => {
+                errorOverlay.style.display = 'none';
+            });
+        }
     } finally {
         document.getElementById('loading-overlay').style.display = 'none';
     }

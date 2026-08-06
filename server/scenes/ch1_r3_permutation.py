@@ -63,8 +63,8 @@ class Ch1R3Permutation(BaseScene):
         A = np.array([[a11, a12], [a21, a22]], dtype=float)
         A_swapped = np.column_stack([A[:, 1], A[:, 0]])  # 交换两列
 
-        det_A = float(np.linalg.det(A))
-        det_swapped = float(np.linalg.det(A_swapped))
+        det_A = M.matrix_determinant(A)
+        det_swapped = M.matrix_determinant(A_swapped)
 
         # 平行四边形顶点
         def get_parallelogram(mat):

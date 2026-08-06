@@ -208,14 +208,14 @@ class Ch2R3AxEqB(BaseScene):
                 "decomposition": decomposition,
                 "intersection": intersection,
                 "solution_type": sol_type,
-                "det_A": float(np.linalg.det(A)),
+                "det_A": M.matrix_determinant(A),
             },
             "verification": self.make_verification(verification_checks),
             "solution_info": {
                 "type": sol_type,
                 "description": description,
                 "details": {
-                    "det(A)": f"{np.linalg.det(A):.4f}",
+                    "det(A)": f"{M.matrix_determinant(A):.4f}",
                     "解的类型": {"unique": "唯一解", "none": "无解", "infinite": "无穷多解"}.get(sol_type, "未知"),
                 },
             },

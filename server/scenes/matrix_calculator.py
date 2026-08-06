@@ -244,7 +244,7 @@ class MatrixCalculator(BaseScene):
             ]
             if abs(det) > 1e-10:
                 # 验证 adj(A) = det(A) * A^(-1)
-                expected = det * np.linalg.inv(A)
+                expected = det * M.matrix_inverse(A)
                 is_correct = np.allclose(adjA, expected, atol=1e-8)
                 matrices.append({"label": "验证 det(A)·A⁻¹", "symbol": "\\det(A) \\cdot A^{-1}", "data": expected.tolist()})
             else:
@@ -352,7 +352,7 @@ class MatrixCalculator(BaseScene):
                 "label": label,
                 "unit_shape": unit,
                 "transformed_shape": transformed,
-                "det": float(np.linalg.det(mat)),
+                "det": M.matrix_determinant(mat),
             }
         elif mat.shape == (3, 3):
             unit = [
@@ -368,6 +368,6 @@ class MatrixCalculator(BaseScene):
                 "label": label,
                 "unit_shape": unit,
                 "transformed_shape": transformed,
-                "det": float(np.linalg.det(mat)),
+                "det": M.matrix_determinant(mat),
             }
         return None

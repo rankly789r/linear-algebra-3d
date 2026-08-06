@@ -150,9 +150,9 @@ class Ch3R13ElemCol(BaseScene):
         # 验证
         verification_checks = [
             {"label": f"det(E) = {det_E:.4f}（预期值）",
-             "passed": bool(np.isclose(np.linalg.det(E), det_E, atol=1e-8))},
+             "passed": bool(np.isclose(M.matrix_determinant(E), det_E, atol=1e-8))},
             {"label": f"E 为初等矩阵（可逆）",
-             "passed": bool(np.linalg.matrix_rank(E) == n)},
+             "passed": bool(M.matrix_rank(E) == n)},
             {"label": f"列变换结果 AE 维度正确",
              "passed": AE.shape == (n, n)},
             {"label": f"右乘≠左乘（一般情况下）",
@@ -196,7 +196,7 @@ class Ch3R13ElemCol(BaseScene):
                 "details": {
                     "操作类型": {"swap": "交换两列", "scale": "倍乘某列", "add": "倍加某列"}[elem_type],
                     "列操作描述": col_op_desc,
-                    "det(E)": f"{np.linalg.det(E):.4f}",
+                    "det(E)": f"{M.matrix_determinant(E):.4f}",
                     "左乘 vs 右乘": "左乘E·A=行变换(改变方程)，右乘A·E=列变换(改变变量)",
                 },
             },
@@ -224,7 +224,7 @@ class Ch3R13ElemCol(BaseScene):
             return {
                 "dim": 2, "label": label,
                 "unit_shape": unit, "transformed_shape": transformed,
-                "det": float(np.linalg.det(mat)),
+                "det": M.matrix_determinant(mat),
             }
         elif n == 3:
             unit = [
@@ -238,6 +238,6 @@ class Ch3R13ElemCol(BaseScene):
             return {
                 "dim": 3, "label": label,
                 "unit_shape": unit, "transformed_shape": transformed,
-                "det": float(np.linalg.det(mat)),
+                "det": M.matrix_determinant(mat),
             }
         return None

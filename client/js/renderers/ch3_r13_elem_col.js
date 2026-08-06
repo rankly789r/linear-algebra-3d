@@ -231,7 +231,7 @@ export class Ch3R13ElemColRenderer extends SceneRenderer {
         this._animT = t;
         this._interpolateToT(t);
         if (t < 1.0) {
-            requestAnimationFrame(() => this._animFrame());
+            this._animFrameId = requestAnimationFrame(() => this._animFrame());
         } else {
             this._animating = false;
             this._animT = 1.0;

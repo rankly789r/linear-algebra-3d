@@ -161,7 +161,7 @@ class Ch3R9Gaussian(BaseScene):
                 "description": desc,
                 "details": {
                     "消元步数": str(len(steps) - 1),
-                    "最终阶梯形非零行数": str(np.linalg.matrix_rank(Ab)),
+                    "最终阶梯形非零行数": str(M.matrix_rank(Ab)),
                 },
             },
         }

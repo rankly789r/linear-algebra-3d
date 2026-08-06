@@ -149,9 +149,9 @@ class Ch3R12ElemRow(BaseScene):
         # 验证
         verification_checks = [
             {"label": f"det(E) = {det_E:.4f}（预期值）",
-             "passed": bool(np.isclose(np.linalg.det(E), det_E, atol=1e-8))},
+             "passed": bool(np.isclose(M.matrix_determinant(E), det_E, atol=1e-8))},
             {"label": f"E 为初等矩阵（可逆）",
-             "passed": bool(np.linalg.matrix_rank(E) == n)},
+             "passed": bool(M.matrix_rank(E) == n)},
             {"label": f"行变换结果 EA 维度正确",
              "passed": EA.shape == (n, n)},
         ]
@@ -192,7 +192,7 @@ class Ch3R12ElemRow(BaseScene):
                 "details": {
                     "操作类型": {"swap": "交换两行", "scale": "倍乘某行", "add": "倍加某行"}[elem_type],
                     "行操作描述": op_desc,
-                    "det(E)": f"{np.linalg.det(E):.4f}",
+                    "det(E)": f"{M.matrix_determinant(E):.4f}",
                     "E 可逆": "是",
                 },
             },
@@ -224,7 +224,7 @@ class Ch3R12ElemRow(BaseScene):
                 "label": label,
                 "unit_shape": unit,
                 "transformed_shape": transformed,
-                "det": float(np.linalg.det(mat)),
+                "det": M.matrix_determinant(mat),
             }
         elif n == 3:
             unit = [
@@ -240,6 +240,6 @@ class Ch3R12ElemRow(BaseScene):
                 "label": label,
                 "unit_shape": unit,
                 "transformed_shape": transformed,
-                "det": float(np.linalg.det(mat)),
+                "det": M.matrix_determinant(mat),
             }
         return None

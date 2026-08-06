@@ -85,6 +85,15 @@ export class SceneRenderer {
             clearTimeout(this._trailingTimer);
             this._trailingTimer = null;
         }
+        // 清除动画启动定时器（防止延迟动画在销毁后启动）
+        if (this._animTimeout) {
+            clearTimeout(this._animTimeout);
+            this._animTimeout = null;
+        }
+        if (this._animStartTimer) {
+            clearTimeout(this._animStartTimer);
+            this._animStartTimer = null;
+        }
         // 清理 3D 对象
         while (this.sceneObjects.children.length > 0) {
             const child = this.sceneObjects.children[0];

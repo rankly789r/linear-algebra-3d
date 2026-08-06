@@ -191,7 +191,7 @@ export class RankIntuitionRenderer extends SceneRenderer {
         this._interpolateToT(t);
 
         if (t < 1.0) {
-            requestAnimationFrame(() => this._animFrame());
+            this._animFrameId = requestAnimationFrame(() => this._animFrame());
         } else {
             this._animating = false;
             this._animT = 1.0;

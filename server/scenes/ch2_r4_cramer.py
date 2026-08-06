@@ -71,14 +71,14 @@ class Ch2R4Cramer(BaseScene):
         A = np.array([[a11, a12], [a21, a22]], dtype=float)
         b = np.array([b1, b2], dtype=float)
 
-        det_A = float(np.linalg.det(A))
+        det_A = M.matrix_determinant(A)
 
         # 构造 A₁（第1列替换为b）和 A₂（第2列替换为b）
         A1 = np.column_stack([b, A[:, 1]])  # [b, a₂]
         A2 = np.column_stack([A[:, 0], b])  # [a₁, b]
 
-        det_A1 = float(np.linalg.det(A1))
-        det_A2 = float(np.linalg.det(A2))
+        det_A1 = M.matrix_determinant(A1)
+        det_A2 = M.matrix_determinant(A2)
 
         # 求解
         sol_type, x = M.solve_linear(A, b)
@@ -96,8 +96,8 @@ class Ch2R4Cramer(BaseScene):
             return {
                 "label": label_str,
                 "vertices": [[float(v[0]), float(v[1]), 0.0] for v in verts],
-                "area": abs(float(np.linalg.det(mat))),
-                "det": float(np.linalg.det(mat)),
+                "area": abs(M.matrix_determinant(mat)),
+                "det": M.matrix_determinant(mat),
             }
 
         transforms = [

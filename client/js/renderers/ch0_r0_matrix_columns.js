@@ -293,7 +293,7 @@ export class MatrixColumnsRenderer extends SceneRenderer {
         this._addAnimationButton();
 
         // 每次数据更新都自动播放动画
-        setTimeout(() => this._startAnimation(), 300);
+        this._animStartTimer = setTimeout(() => this._startAnimation(), 300);
     }
 
     /** 添加一个 sprite 标签到箭头组 */
@@ -367,7 +367,7 @@ export class MatrixColumnsRenderer extends SceneRenderer {
         this._interpolateToT(t);
 
         if (t < 1.0) {
-            requestAnimationFrame(() => this._animFrame());
+            this._animFrameId = requestAnimationFrame(() => this._animFrame());
         } else {
             this._animating = false;
             this._animT = 1.0;
