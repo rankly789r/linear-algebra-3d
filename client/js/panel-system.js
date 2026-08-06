@@ -408,6 +408,15 @@ class DockZone {
         } else {
             this.el.classList.remove('empty');
         }
+        // 同步父级侧栏可见性：空列应完全隐藏，不占空间
+        const col = this.el.parentElement;
+        if (col && (col.id === 'left-column' || col.id === 'right-column')) {
+            if (this.isEmpty()) {
+                col.classList.add('no-panels');
+            } else {
+                col.classList.remove('no-panels');
+            }
+        }
     }
 
     // ─── 拖拽事件处理 ─────────────────────────────────────
@@ -416,6 +425,12 @@ class DockZone {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         this.el.classList.add('drag-over');
+
+        // 空列悬停时展开以显示 placeholder
+        const col = this.el.parentElement;
+        if (this.isEmpty() && col) {
+            col.classList.add('drag-expand');
+        }
 
         const index = this._getInsertionIndex(e);
         this._showInsertionIndicator(index);
@@ -426,6 +441,8 @@ class DockZone {
         if (!this.el.contains(e.relatedTarget)) {
             this.el.classList.remove('drag-over');
             this._clearInsertionIndicator();
+            const col = this.el.parentElement;
+            if (col) col.classList.remove('drag-expand');
         }
     }
 
@@ -433,6 +450,9 @@ class DockZone {
         e.preventDefault();
         this.el.classList.remove('drag-over');
         this._clearInsertionIndicator();
+
+        const col = this.el.parentElement;
+        if (col) col.classList.remove('drag-expand');
 
         const panelId = e.dataTransfer.getData('text/plain');
         if (!panelId) return;
@@ -686,16 +706,21 @@ class PanelManager {
         requestAnimationFrame(() => ghost.remove());
 
         panel.el.classList.add('dragging');
+        document.body.classList.add('is-dragging');
     }
 
     _onDragEnd(e, panel) {
         panel.el.classList.remove('dragging');
+        document.body.classList.remove('is-dragging');
         this._dragState = { panelId: null, sourceZoneId: null };
 
         // 清除所有区域的拖拽指示
         for (const [_, zone] of this.zones) {
             zone.el.classList.remove('drag-over');
             zone._clearInsertionIndicator();
+            // 清除空列展开状态
+            const col = zone.el.parentElement;
+            if (col) col.classList.remove('drag-expand');
         }
     }
 }

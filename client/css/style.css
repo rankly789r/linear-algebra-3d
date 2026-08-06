@@ -277,6 +277,39 @@ body {
     display: none;
 }
 
+/* ─── 空列行为：无面板时完全隐藏 ─── */
+#left-column.no-panels,
+#right-column.no-panels {
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+    transition: width 0.2s ease, min-width 0.2s ease;
+}
+
+/* 无面板时折叠按钮也不该存在 */
+#left-column.no-panels .sidebar-toggle,
+#right-column.no-panels .sidebar-toggle {
+    display: none !important;
+}
+
+/* 拖拽进行中：空列露一条窄边，提示可拖放 */
+body.is-dragging #left-column.no-panels,
+body.is-dragging #right-column.no-panels {
+    width: 10px !important;
+    min-width: 10px !important;
+    overflow: visible;
+    background: rgba(76, 201, 240, 0.10);
+}
+
+/* 拖拽悬停在空列上：展开以显示 "拖拽面板到此处" */
+#left-column.no-panels.drag-expand,
+#right-column.no-panels.drag-expand {
+    width: 200px !important;
+    min-width: 200px !important;
+    background: var(--bg-panel);
+}
+
 /* 场景信息头（右栏顶部，不可拖拽） */
 #scene-info-header {
     flex-shrink: 0;
