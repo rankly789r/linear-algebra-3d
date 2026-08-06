@@ -346,12 +346,9 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-// 监听 viewer 尺寸变化（列过渡时 debounce，避免每帧 resize 导致闪烁）
-let _resizeDebounce = null;
-new ResizeObserver(() => {
-    if (_resizeDebounce) clearTimeout(_resizeDebounce);
-    _resizeDebounce = setTimeout(() => resize(), 120);
-}).observe(viewer);
+// 监听 viewer 尺寸变化，与列 CSS transition 同步缩放
+// 只观察 viewer 一个元素，避免之前 4 个 dock zone 观察者的连锁触发
+new ResizeObserver(() => resize()).observe(viewer);
 
 resize();
 
