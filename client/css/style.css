@@ -356,7 +356,7 @@ body {
     opacity: 0.6;
 }
 
-.dock-zone.empty .zone-placeholder {
+.dock-zone.drag-over.empty .zone-placeholder {
     display: flex;
 }
 
