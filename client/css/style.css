@@ -10,7 +10,7 @@
     --bg-panel: #12121f;
     --text-primary: #e0e0e0;
     --text-secondary: #a0a0b8;
-    --text-muted: #666680;
+    --text-muted: #8888a0;
     --accent: #4cc9f0;
     --accent-hover: #5ed4f7;
     --green: #06d6a0;
@@ -184,7 +184,7 @@ body {
 #panel-vis-toggle {
     position: absolute;
     top: 12px;
-    left: 12px;
+    right: 12px;
     z-index: 100;
     padding: 5px 12px;
     font-size: 0.74rem;
@@ -206,7 +206,7 @@ body {
 .panel-vis-menu {
     position: absolute;
     top: 44px;
-    left: 12px;
+    right: 12px;
     z-index: 101;
     min-width: 190px;
     background: rgba(18, 18, 31, 0.95);
@@ -765,21 +765,56 @@ body {
 
 #error-overlay {
     position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 25;
+    display: none;
+}
+#error-overlay-bg {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(26, 26, 46, 0.85);
+    backdrop-filter: blur(4px);
+}
+#error-overlay-box {
+    position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(239, 71, 111, 0.15);
+    background: rgba(239, 71, 111, 0.12);
     border: 1px solid var(--red);
     border-radius: var(--radius);
-    padding: 16px 24px;
-    z-index: 20;
-    max-width: 400px;
+    padding: 20px 28px;
+    max-width: 420px;
     text-align: center;
 }
 #error-message {
     color: var(--red);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     line-height: 1.5;
+    margin-bottom: 14px;
 }
+#error-overlay-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+#error-retry-btn, #error-close-btn {
+    padding: 6px 18px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.82rem;
+}
+#error-retry-btn {
+    background: var(--accent);
+    color: #fff;
+}
+#error-retry-btn:hover { opacity: 0.85; }
+#error-close-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--text-muted);
+}
+#error-close-btn:hover { background: rgba(255,255,255,0.05); }
 
 /* ===== 矩阵排版（由 panel body 的 data-orientation 属性驱动） ===== */
 /* 面板被放入横向区域时，矩阵项横排；纵向区域时竖排 */
