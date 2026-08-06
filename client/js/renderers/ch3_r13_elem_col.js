@@ -8,8 +8,7 @@ import { ElemTransformBaseRenderer } from './_elem_transform_base.js';
 
 export class Ch3R13ElemColRenderer extends ElemTransformBaseRenderer {
     static CONFIG = {
-        colors: [0x06d6a0, 0xef476f],       // A: green, AE: red
-        arrowLabel: '右乘 E',
+        color: 0xef476f,                    // AE: red
         storageKey: 'la_ch3r13_anim_auto',
     };
 }

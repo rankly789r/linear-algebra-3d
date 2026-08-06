@@ -25,11 +25,10 @@ const CUBE_FACES = [
 export class ElemTransformBaseRenderer extends SceneRenderer {
 
     /**
-     * 子类必须提供 static CONFIG = { colors: [0xRRGGBB, 0xRRGGBB], arrowLabel: '...', storageKey: 'la_...' }
+     * 子类必须覆盖 static CONFIG = { color: 0xRRGGBB, storageKey: 'la_...' }
      */
     static CONFIG = {
-        colors: [0x4cc9f0, 0xffd166],
-        arrowLabel: '左乘 E',
+        color: 0xffd166,
         storageKey: 'la_chXrX_anim_auto',
     };
 
@@ -50,7 +49,7 @@ export class ElemTransformBaseRenderer extends SceneRenderer {
         const ghostVerts = transforms[0].unit_shape;               // 单位方形/立方体
         const animUnit = transforms[1].unit_shape;                 // A 作用后的顶点（起点）
         const animTarget = transforms[1].transformed_shape;        // EA/AE 作用后的顶点（终点）
-        const animColor = this._cfg.colors[1];                     // EA/AE 的颜色
+        const animColor = this._cfg.color;                           // EA/AE 的颜色
 
         // ─── 虚线 ghost：单位方形参考（居中，不偏移）───
         if (is3D) {
