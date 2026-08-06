@@ -311,11 +311,13 @@ class DockPanel {
     show() {
         if (!this._userHidden) {
             this.el.style.display = '';
+            if (this.zone) this.zone._updateEmptyState();
         }
     }
 
     hide() {
         this.el.style.display = 'none';
+        if (this.zone) this.zone._updateEmptyState();
     }
 
     setTitle(text) {
@@ -403,7 +405,12 @@ class DockZone {
     }
 
     _updateEmptyState() {
-        if (this.isEmpty()) {
+        // 全部隐藏也算空（用户通过可见性菜单关闭了所有面板）
+        const allHidden = this.panels.length > 0
+            && this.panels.every(p => p.el && p.el.style.display === 'none');
+        const effectivelyEmpty = this.isEmpty() || allHidden;
+
+        if (effectivelyEmpty) {
             this.el.classList.add('empty');
         } else {
             this.el.classList.remove('empty');
@@ -411,7 +418,7 @@ class DockZone {
         // 同步父级侧栏可见性：空列应完全隐藏，不占空间
         const col = this.el.parentElement;
         if (col && (col.id === 'left-column' || col.id === 'right-column')) {
-            if (this.isEmpty()) {
+            if (effectivelyEmpty) {
                 col.classList.add('no-panels');
             } else {
                 col.classList.remove('no-panels');

@@ -180,33 +180,37 @@ body {
     z-index: 5;
 }
 
-/* ── 面板显示管理 ── */
+/* ── 面板显示管理（按钮在场景标题栏右上角）── */
 #panel-vis-toggle {
     position: absolute;
-    top: 12px;
+    top: 8px;
     right: 12px;
     z-index: 100;
-    padding: 5px 12px;
-    font-size: 0.74rem;
-    font-weight: 600;
-    background: rgba(18, 18, 31, 0.85);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-secondary);
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-muted);
     cursor: pointer;
-    backdrop-filter: blur(6px);
-    transition: color 0.15s, border-color 0.15s;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
 #panel-vis-toggle:hover {
     color: var(--accent);
-    border-color: var(--accent);
+    border-color: var(--border);
+    background: var(--bg-secondary);
 }
 
 .panel-vis-menu {
     position: absolute;
-    top: 44px;
-    right: 12px;
+    top: 38px;
+    right: 4px;
     z-index: 101;
     min-width: 190px;
     background: rgba(18, 18, 31, 0.95);
@@ -312,6 +316,7 @@ body.is-dragging #right-column.no-panels {
 
 /* 场景信息头（右栏顶部，不可拖拽） */
 #scene-info-header {
+    position: relative;
     flex-shrink: 0;
     padding: 14px 16px 10px;
     border-bottom: 1px solid var(--border);
