@@ -81,9 +81,9 @@ document.querySelector('.panel-body').innerHTML = '...';
 | `la_sidebar_collapsed` | `{left: bool, right: bool}` | `main.js` 侧栏折叠逻辑 |
 | `la_current_scene` | 场景路由字符串 | `main.js` `switchScene()` |
 | `la_deepseek_api_key` | AI API Key | `main.js` AI 答疑逻辑 |
-| `la_lecture_basic_collapsed` | `'1'`/`'0'` 基础讲解折叠 | `scene-base.js` `_buildLecturePanel()` |
-| `la_lecture_ai_collapsed` | `'1'`/`'0'` AI 答疑折叠 | `scene-base.js` `_buildLecturePanel()` |
-| `la_lecture_subpanel_order` | `['basic','ai']` 或 `['ai','basic']` | `scene-base.js` `_buildLecturePanel()` |
+| `la_lecture_basic_collapsed` | `'1'`/`'0'` 基础讲解折叠 | `scene-base.js` `_updateLecturePanel()` |
+| `la_lecture_ai_collapsed` | `'1'`/`'0'` AI 答疑折叠 | `scene-base.js` `_updateLecturePanel()` |
+| `la_lecture_subpanel_order` | `['basic','ai']` 或 `['ai','basic']` | `scene-base.js` `_updateLecturePanel()` |
 
 **重置方法**：控制台 `localStorage.clear(); location.reload();`
 
