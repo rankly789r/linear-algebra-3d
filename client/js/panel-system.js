@@ -309,7 +309,9 @@ class DockPanel {
     }
 
     show() {
-        this.el.style.display = '';
+        if (!this._userHidden) {
+            this.el.style.display = '';
+        }
     }
 
     hide() {
