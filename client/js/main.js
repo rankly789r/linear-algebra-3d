@@ -137,8 +137,8 @@ let currentSceneName = null;
         const tag = document.activeElement?.tagName;
         const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
 
-        // 获取当前可见的场景按钮列表（考虑搜索过滤）
-        const getVisibleButtons = () => {
+        // 获取被搜索过滤后的场景按钮列表（用于 [/] 跨章快切）
+        const getFilteredButtons = () => {
             const all = document.querySelectorAll('.scene-btn');
             return Array.from(all).filter(b => b.style.display !== 'none');
         };
@@ -172,10 +172,10 @@ let currentSceneName = null;
             return;
         }
 
-        // [ / ] — 上下一个场景（跨章）
+        // [ / ] — 上下一个场景（跨章，尊重搜索过滤）
         if ((e.key === '[' || e.key === ']') && !e.ctrlKey && !e.metaKey) {
             e.preventDefault();
-            const visible = getVisibleButtons();
+            const visible = getFilteredButtons();
             if (visible.length === 0) return;
             const current = visible.findIndex(b => b.classList.contains('active'));
             const nextIdx = e.key === ']'
@@ -183,34 +183,6 @@ let currentSceneName = null;
                 : (current - 1 + visible.length) % visible.length;
             const target = visible[nextIdx];
             if (target) switchScene(target.dataset.scene);
-            return;
-        }
-
-        // ↑ / ↓ — 在同组场景内上下导航，Enter 加载
-        if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.ctrlKey && !e.metaKey) {
-            e.preventDefault();
-            const visible = getVisibleButtons();
-            if (visible.length === 0) return;
-            // 取消当前高亮
-            visible.forEach(b => b.classList.remove('kb-hover'));
-            const currentIdx = visible.findIndex(b => b.classList.contains('active'));
-            const delta = e.key === 'ArrowDown' ? 1 : -1;
-            const nextIdx = ((currentIdx >= 0 ? currentIdx : 0) + delta + visible.length) % visible.length;
-            visible[nextIdx].classList.add('kb-hover');
-            visible[nextIdx].scrollIntoView({ block: 'nearest' });
-            return;
-        }
-
-        if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
-            e.preventDefault();
-            const hovered = document.querySelector('.scene-btn.kb-hover');
-            if (hovered) switchScene(hovered.dataset.scene);
-            return;
-        }
-
-        // Escape — 清除键盘高亮
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.scene-btn.kb-hover').forEach(b => b.classList.remove('kb-hover'));
             return;
         }
     });
@@ -718,7 +690,6 @@ async function switchScene(sceneName) {
     currentSceneName = sceneName;
     // 高亮当前菜单
     sceneButtons.forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.scene-btn.kb-hover').forEach(b => b.classList.remove('kb-hover'));
     const btn = document.querySelector(`[data-scene="${sceneName}"]`);
     if (btn) btn.classList.add('active');
 

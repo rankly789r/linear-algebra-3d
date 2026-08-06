@@ -170,12 +170,6 @@ body {
     border-left-color: var(--accent);
     font-weight: 600;
 }
-.scene-btn.kb-hover {
-    background: rgba(76, 201, 240, 0.08);
-    color: var(--accent);
-    border-left-color: rgba(76, 201, 240, 0.5);
-}
-
 /* ===== 左停靠区 ===== */
 #dock-left {
     flex: 1;
