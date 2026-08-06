@@ -243,7 +243,37 @@ localStorage.clear(); location.reload();
 4. **禁止在 CSS 中使用 `!important` 以外的任何方式覆盖内联样式**
 5. **禁止在 `buildUI()` 中无条件 `_showPanel()`**——必须先检查 `_userHidden`
 
-## 提交规范
+## Git 工作流（⚠️ 强制）
+
+### 分支策略
+
+**禁止直接在 `master` 上提交。** 所有工作在自己的功能分支上进行。
+
+```
+开工前（一次性）：
+  git checkout master
+  git pull
+
+每次新任务：
+  git checkout -b feat/panel/<功能名>    # 新功能
+  git checkout -b fix/panel/<问题名>     # 修 Bug
+  # 在分支上随便改、随便提交
+  git push -u origin feat/panel/<功能名>
+```
+
+### 分支命名规则
+
+| 你的任务类型 | 分支名 |
+|-------------|--------|
+| 新功能/新组件 | `feat/panel/<功能名>`，如 `feat/panel/theme-switcher` |
+| 修 Bug | `fix/panel/<问题名>`，如 `fix/panel/resize-handle` |
+| 重构 | `refactor/panel/<内容>`，如 `refactor/panel/extract-menu` |
+
+### 为什么
+
+项目有三个 AI 同时在改代码（场景开发者、面板负责人、审计员）。都在 `master` 上推会互相冲突，尤其是共享文件（`main.js`、`server/main.py`）。各开各的分支，审计通过后再合并，互不干扰。
+
+### 提交规范
 
 每次 UI 修改提交时，commit message 格式：
 ```

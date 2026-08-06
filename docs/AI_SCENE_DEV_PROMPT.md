@@ -219,6 +219,46 @@ import {
 - 禁止加新工具但不写文档
 - 禁止用方程系数记法（a₁、b₁、c₁、d₁）命名矩阵元素——必须用矩阵下标（a₁₁、a₁₂、a₂₁、a₂₂）
 
+## Git 工作流（⚠️ 强制）
+
+### 分支策略
+
+**禁止直接在 `master` 上提交。** 所有工作在自己的功能分支上进行。
+
+```
+开工前（一次性）：
+  git checkout master
+  git pull
+
+每次新场景或修改：
+  git checkout -b feat/scene/<场景名>    # 新场景
+  git checkout -b fix/scene/<问题名>     # 修 Bug
+  # 在分支上随便改、随便提交
+  git push -u origin feat/scene/<场景名>
+```
+
+### 分支命名规则
+
+| 你的任务类型 | 分支名 |
+|-------------|--------|
+| 新建场景 | `feat/scene/<场景路由>`，如 `feat/scene/ch3-r10-row-echelon` |
+| 修改场景 | `fix/scene/<场景路由>`，如 `fix/scene/ch2-r0-matrix-multiply` |
+| 新增公共工具 | `feat/utils/<工具名>`，如 `feat/utils/create-label-helper` |
+
+### 为什么
+
+项目有三个 AI 同时在改代码（你、面板负责人、审计员）。都在 `master` 上推会互相冲突，尤其是共享文件（`main.js`、`server/main.py`、`draw-utils.js`）。各开各的分支，审计通过后再合并，互不干扰。
+
+### 提交规范
+
+commit message 格式：
+```
+feat: <场景名> — <一句话描述>
+fix: <场景名> — <修复内容>
+```
+
+每次提交后，在 `docs/` 下写工作日志（命名 `WORK_LOG_YYYY-MM-DD_简述.md`），记录做了什么、踩了什么坑。
+
 ## 审计
 
 AI 审计员会定期审查你的工作。他会重点检查：
