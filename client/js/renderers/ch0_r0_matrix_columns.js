@@ -322,15 +322,31 @@ export class MatrixColumnsRenderer extends SceneRenderer {
         if (!panel) return;
         const body = panel.body;
 
+        // 去重
+        if (body.querySelector('.anim-replay-btn')) return;
+
         const btnRow = document.createElement('div');
         btnRow.style.cssText = 'margin-bottom:8px;';
 
         const btn = document.createElement('button');
+        btn.className = 'anim-replay-btn';
         btn.textContent = '▶ 演示动画';
         btn.style.cssText = 'padding:6px 14px;font-size:0.82rem;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;width:100%;';
         btn.addEventListener('click', () => this._startAnimation());
         btnRow.appendChild(btn);
         body.insertBefore(btnRow, body.firstChild);
+    }
+
+    /** 更新动画按钮文字和状态 */
+    _updateAnimButton(text, disabled) {
+        const panel = this._panel('solution');
+        if (!panel) return;
+        const btn = panel.body.querySelector('.anim-replay-btn');
+        if (btn) {
+            btn.textContent = text;
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? '0.6' : '1';
+        }
     }
 
     /** 开始动画：从恒等变换插值到目标矩阵 */
@@ -340,17 +356,7 @@ export class MatrixColumnsRenderer extends SceneRenderer {
         this._animStartTime = performance.now();
         this._animDuration = 1500;  // 1.5 秒
 
-        // 禁用动画按钮
-        const panel = this._panel('solution');
-        if (panel) {
-            const btn = panel.body.querySelector('button');
-            if (btn) {
-                btn.textContent = '⟳ 动画中...';
-                btn.disabled = true;
-                btn.style.opacity = '0.6';
-            }
-        }
-
+        this._updateAnimButton('⟳ 动画中...', true);
         this._animFrame();
     }
 
@@ -371,16 +377,7 @@ export class MatrixColumnsRenderer extends SceneRenderer {
         } else {
             this._animating = false;
             this._animT = 1.0;
-            // 恢复按钮
-            const panel = this._panel('solution');
-            if (panel) {
-                const btn = panel.body.querySelector('button');
-                if (btn) {
-                    btn.textContent = '🔄 重播动画';
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                }
-            }
+            this._updateAnimButton('🔄 重播动画', false);
         }
     }
 
@@ -415,15 +412,6 @@ export class MatrixColumnsRenderer extends SceneRenderer {
     /** 直接跳到最终状态（无动画） */
     _setToTarget() {
         this._interpolateToT(1.0);
-        // 更新按钮文字
-        const panel = this._panel('solution');
-        if (panel) {
-            const btn = panel.body.querySelector('button');
-            if (btn) {
-                btn.textContent = '🔄 重播动画';
-                btn.disabled = false;
-                btn.style.opacity = '1';
-            }
-        }
+        this._updateAnimButton('🔄 重播动画', false);
     }
 }

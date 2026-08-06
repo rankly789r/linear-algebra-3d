@@ -417,6 +417,14 @@ export class SceneRenderer {
         const panel = this._panel('solution');
         if (!panel) return;
 
+        // 使用专用容器，避免 innerHTML 全量替换误删动画按钮等子元素
+        let container = panel.body.querySelector('[data-section="solution-info"]');
+        if (!container) {
+            container = document.createElement('div');
+            container.dataset.section = 'solution-info';
+            panel.body.appendChild(container);
+        }
+
         if (data.solution_info) {
             panel.show();
             const info = data.solution_info;
@@ -433,9 +441,9 @@ export class SceneRenderer {
                     html += `<p style="margin-top:4px;font-size:0.76rem;color:var(--text-secondary);"><strong>${k}:</strong> ${v}</p>`;
                 }
             }
-            panel.body.innerHTML = html;
+            container.innerHTML = html;
         } else {
-            panel.body.innerHTML = '';
+            container.innerHTML = '';
         }
     }
 
@@ -728,6 +736,17 @@ export class SceneRenderer {
             settingsBtn.textContent = '⚙️';
             settingsBtn.addEventListener('click', () => this._toggleApiKeySettings(container));
             headerRow.appendChild(settingsBtn);
+
+            const exportBtn = document.createElement('button');
+            exportBtn.className = 'ai-chat-settings-btn';
+            exportBtn.title = '导出笔记为 Markdown';
+            exportBtn.textContent = '📥';
+            exportBtn.style.marginLeft = '2px';
+            exportBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._exportNote();
+            });
+            headerRow.appendChild(exportBtn);
 
             container.appendChild(headerRow);
 
@@ -1067,6 +1086,9 @@ export class SceneRenderer {
                 return;
             }
 
+            // 保存计算结果供导出等用途
+            this._lastComputeResult = result.data;
+
             // 双缓冲：构建新场景到新的 Group，然后一次性替换
             const oldGroup = this.sceneObjects;
             const newGroup = new THREE.Group();
@@ -1141,6 +1163,85 @@ export class SceneRenderer {
                 errorOverlay.style.display = 'none';
             });
         }
+    }
+
+    // ─── 笔记导出 ──────────────────────────────────────────
+
+    _exportNote() {
+        const data = this._lastComputeResult;
+        if (!data) {
+            alert('请先加载场景数据后再导出。');
+            return;
+        }
+
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const title = this.meta.title || '未命名';
+        const safeTitle = title.replace(/[/\\?%*:|"<>]/g, '-');
+
+        let md = `---\ntitle: "${title}"\ndate: ${dateStr}\n---\n\n`;
+
+        // 当前参数
+        if (this.params && Object.keys(this.params).length > 0) {
+            md += '## 当前参数\n\n';
+            for (const [key, val] of Object.entries(this.params)) {
+                const label = this.meta.params?.[key]?.label || key;
+                md += `- **${label}**: ${val}\n`;
+            }
+            md += '\n';
+        }
+
+        // 矩阵数据
+        const matrices = data.scene_data?.matrices;
+        if (matrices && matrices.length > 0) {
+            md += '## 矩阵数据\n\n';
+            for (const m of matrices) {
+                const sym = m.symbol || '';
+                md += `### ${m.label || ''}\n\n`;
+                if (m.data && m.data.length > 0) {
+                    const rows = m.data.map(r =>
+                        r.map(v => (typeof v === 'number' ? parseFloat(v.toFixed(4)) : v)).join(' & ')
+                    );
+                    md += `$$${sym ? sym + ' = ' : ''}\\begin{pmatrix} ${rows.join(' \\\\\\\\ ')} \\end{pmatrix}$$\n\n`;
+                }
+            }
+        }
+
+        // 分析结果
+        const sol = data.solution_info;
+        if (sol) {
+            md += '## 分析结果\n\n';
+            md += `- **解的类型**: ${sol.description || sol.type || '—'}\n`;
+            if (sol.details) {
+                for (const [k, v] of Object.entries(sol.details)) {
+                    md += `- **${k}**: ${v}\n`;
+                }
+            }
+            md += '\n';
+        }
+
+        // 讲解内容
+        const lecture = data.lecture;
+        if (lecture?.sections) {
+            md += '## 讲解内容\n\n';
+            for (const sec of lecture.sections) {
+                md += `### ${sec.title}\n\n${sec.content}\n\n`;
+            }
+        }
+
+        // 截图占位
+        md += '## 截图\n\n![]()\n';
+
+        // 触发下载
+        const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `线性代数笔记_${safeTitle}_${dateStr}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     _disposeRecursive(obj) {

@@ -345,3 +345,119 @@ function disposeRecursive(obj) {
         obj.children.forEach(c => disposeRecursive(c));
     }
 }
+
+// ─── 动画工厂函数 ──────────────────────────────────────────
+// 供动画场景复用，避免各渲染器重复定义
+
+/** 几何常量：四边形的边和面索引 */
+export const EDGES_QUAD = [[0, 1], [1, 2], [2, 3], [3, 0]];
+export const FACES_QUAD = [[0, 1, 2], [0, 2, 3]];
+
+/**
+ * 创建可更新顶点的线框。
+ * @param {number[][]} vertices - 初始顶点数组 [[x,y,z], ...]
+ * @param {number[][]} edgePairs - 边索引对 [[i,j], ...]
+ * @param {number} color - 十六进制颜色
+ * @param {number} opacity - 透明度
+ * @returns {THREE.LineSegments} 带 .updateVertices(newVertices) 方法的线段对象
+ */
+export function createUpdatableWireframe(vertices, edgePairs, color, opacity) {
+    const positions = [];
+    edgePairs.forEach(([i, j]) => {
+        positions.push(...vertices[i], ...vertices[j]);
+    });
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    const mat = new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity, depthTest: true });
+    const lines = new THREE.LineSegments(geom, mat);
+
+    lines.updateVertices = function (newVertices) {
+        const arr = geom.attributes.position.array;
+        let idx = 0;
+        edgePairs.forEach(([i, j]) => {
+            arr[idx] = newVertices[i][0]; arr[idx + 1] = newVertices[i][1]; arr[idx + 2] = newVertices[i][2];
+            arr[idx + 3] = newVertices[j][0]; arr[idx + 4] = newVertices[j][1]; arr[idx + 5] = newVertices[j][2];
+            idx += 6;
+        });
+        geom.attributes.position.needsUpdate = true;
+    };
+    return lines;
+}
+
+/**
+ * 创建可更新顶点的半透明面。
+ * @param {number[][]} vertices - 初始顶点数组
+ * @param {number[][]} faceIndices - 面索引数组（三角形）
+ * @param {number} color - 十六进制颜色
+ * @param {number} opacity - 透明度
+ * @returns {THREE.Group} 带 .updateVertices(newVertices) 方法的 Group
+ */
+export function createUpdatableFaces(vertices, faceIndices, color, opacity) {
+    const group = new THREE.Group();
+    const buildFaces = (verts) => {
+        while (group.children.length > 0) {
+            const c = group.children[0]; c.geometry.dispose(); c.material.dispose(); group.remove(c);
+        }
+        faceIndices.forEach(face => {
+            const tv = face.map(i => new THREE.Vector3(...verts[i]));
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(tv.flatMap(v => [v.x, v.y, v.z])), 3));
+            geom.setIndex([0, 1, 2]);
+            geom.computeVertexNormals();
+            const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity, depthWrite: false });
+            group.add(new THREE.Mesh(geom, mat));
+        });
+    };
+    buildFaces(vertices);
+    group.updateVertices = buildFaces;
+    return group;
+}
+
+/**
+ * 创建可动画的箭头（从原点出发的线段 + 端点球 + 文字标签）。
+ * @param {number[]} endPos - 初始终点 [x, y, z]
+ * @param {number} color - 十六进制颜色
+ * @param {string} labelText - 标签文字
+ * @returns {THREE.Group} 带 .update(end) 方法的 Group
+ */
+export function createAnimatableArrow(endPos, color, labelText) {
+    const group = new THREE.Group();
+
+    const geom = new THREE.BufferGeometry();
+    const arr = new Float32Array([0, 0, 0, endPos[0], endPos[1], endPos[2]]);
+    geom.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    const mat = new THREE.LineBasicMaterial({ color });
+    const line = new THREE.Line(geom, mat);
+    group.add(line);
+
+    const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 8, 8),
+        new THREE.MeshBasicMaterial({ color })
+    );
+    dot.position.set(...endPos);
+    group.add(dot);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 128; canvas.height = 48;
+    const ctx = canvas.getContext('2d');
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(labelText, 64, 24);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
+    sprite.position.set(endPos[0], endPos[1] + 0.3, endPos[2]);
+    sprite.scale.set(1.2, 0.45, 1);
+    group.add(sprite);
+
+    group.update = function (end) {
+        const a = line.geometry.attributes.position.array;
+        a[3] = end[0]; a[4] = end[1]; a[5] = end[2];
+        line.geometry.attributes.position.needsUpdate = true;
+        dot.position.set(...end);
+        sprite.position.set(end[0], end[1] + 0.3, end[2]);
+    };
+
+    return group;
+}

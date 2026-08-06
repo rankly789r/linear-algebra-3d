@@ -38,6 +38,7 @@ window.panelManager = panelManager;
     const navPanel = panelManager.getPanel('scenenav');
     if (!navPanel) return;
     navPanel.body.innerHTML = `
+        <input class="scene-search" placeholder="🔍 搜索场景..." autocomplete="off">
         <div class="menu-label">基础概念</div>
         <button class="scene-btn" data-scene="ch0_r0_matrix_columns">矩阵的列——线性变换的密码</button>
         <button class="scene-btn" data-scene="ch0_r1_column_decompose">逐列拆解——行与列的几何含义</button>
@@ -79,6 +80,140 @@ window.panelManager = panelManager;
         <div class="menu-label">矩阵计算工具</div>
         <button class="scene-btn" data-scene="matrix_calculator">矩阵计算器</button>
     `;
+})();
+
+// ─── 场景搜索过滤 ────────────────────────────────────────
+
+(function initSceneSearch() {
+    const navPanel = panelManager.getPanel('scenenav');
+    if (!navPanel) return;
+
+    const input = navPanel.body.querySelector('.scene-search');
+    if (!input) return;
+
+    input.addEventListener('input', () => {
+        const query = input.value.toLowerCase().trim();
+        const buttons = navPanel.body.querySelectorAll('.scene-btn');
+        const labels = navPanel.body.querySelectorAll('.menu-label');
+
+        buttons.forEach(btn => {
+            const match = !query || btn.textContent.toLowerCase().includes(query);
+            btn.style.display = match ? '' : 'none';
+        });
+
+        // 隐藏分组标签（如果该组下没有可见按钮）
+        labels.forEach(label => {
+            let next = label.nextElementSibling;
+            let hasVisible = false;
+            while (next && !next.classList.contains('menu-label')) {
+                if (next.classList.contains('scene-btn') && next.style.display !== 'none') {
+                    hasVisible = true;
+                    break;
+                }
+                next = next.nextElementSibling;
+            }
+            label.style.display = hasVisible || !query ? '' : 'none';
+        });
+    });
+
+    // Ctrl+K / Ctrl+F 聚焦搜索框
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'f')) {
+            if (e.key === 'f' && document.activeElement?.tagName === 'INPUT') return;
+            e.preventDefault();
+            input.focus();
+            input.select();
+        }
+    });
+})();
+
+// ─── 键盘快捷键 ──────────────────────────────────────────
+
+let currentSceneName = null;
+
+(function initKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // 忽略输入框内的按键（但放行 Escape 和特定组合键）
+        const tag = document.activeElement?.tagName;
+        const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
+
+        // 获取当前可见的场景按钮列表（考虑搜索过滤）
+        const getVisibleButtons = () => {
+            const all = document.querySelectorAll('.scene-btn');
+            return Array.from(all).filter(b => b.style.display !== 'none');
+        };
+
+        // R — 重置相机（总是触发）
+        if (e.key === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            animateCamera([7, -7, 5], [0, 0, 0]);
+            return;
+        }
+
+        // Space — 重播动画（仅在非输入框时触发）
+        if (e.key === ' ' && !isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.preventDefault();
+            const btn = document.querySelector('.anim-replay-btn');
+            if (btn) btn.click();
+            return;
+        }
+
+        // 以下快捷键在输入框内不触发
+        if (isInput) return;
+
+        // 1~5 — 快速切换预设
+        if (/^[1-5]$/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            const idx = parseInt(e.key) - 1;
+            const panel = panelManager.getPanel('presets');
+            if (panel) {
+                const btns = panel.body.querySelectorAll('.preset-btn');
+                if (btns[idx]) btns[idx].click();
+            }
+            return;
+        }
+
+        // [ / ] — 上下一个场景（跨章）
+        if ((e.key === '[' || e.key === ']') && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            const visible = getVisibleButtons();
+            if (visible.length === 0) return;
+            const current = visible.findIndex(b => b.classList.contains('active'));
+            const nextIdx = e.key === ']'
+                ? (current + 1) % visible.length
+                : (current - 1 + visible.length) % visible.length;
+            const target = visible[nextIdx];
+            if (target) switchScene(target.dataset.scene);
+            return;
+        }
+
+        // ↑ / ↓ — 在同组场景内上下导航，Enter 加载
+        if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            const visible = getVisibleButtons();
+            if (visible.length === 0) return;
+            // 取消当前高亮
+            visible.forEach(b => b.classList.remove('kb-hover'));
+            const currentIdx = visible.findIndex(b => b.classList.contains('active'));
+            const delta = e.key === 'ArrowDown' ? 1 : -1;
+            const nextIdx = ((currentIdx >= 0 ? currentIdx : 0) + delta + visible.length) % visible.length;
+            visible[nextIdx].classList.add('kb-hover');
+            visible[nextIdx].scrollIntoView({ block: 'nearest' });
+            return;
+        }
+
+        if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            const hovered = document.querySelector('.scene-btn.kb-hover');
+            if (hovered) switchScene(hovered.dataset.scene);
+            return;
+        }
+
+        // Escape — 清除键盘高亮
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.scene-btn.kb-hover').forEach(b => b.classList.remove('kb-hover'));
+            return;
+        }
+    });
 })();
 
 // ─── 构建相机面板内容（一次性） ──────────────────────────
@@ -544,9 +679,46 @@ document.addEventListener('click', (e) => {
 
 const sceneButtons = document.querySelectorAll('.scene-btn');
 
+// ─── 面包屑导航 ────────────────────────────────────────────
+
+function getBreadcrumb(sceneName) {
+    const sections = {
+        ch3_r0: '秩的概念', ch3_r3: '秩的概念', ch3_r8: '秩的概念',
+        ch3_r1: '向量与线性关系', ch3_r2: '向量与线性关系',
+        ch3_r4: '线性方程组', ch3_r5: '线性方程组', ch3_r6: '线性方程组', ch3_r7: '线性方程组',
+        ch3_r9: '初等变换', ch3_r12: '初等变换', ch3_r13: '初等变换',
+    };
+    const chapters = {
+        ch0: '基础概念', ch1: '第1章 行列式', ch2: '第2章 矩阵及其运算',
+        ch3: '第3章 矩阵的秩与线性方程组',
+    };
+
+    if (sceneName === 'matrix_calculator') return '工具 › 矩阵计算器';
+
+    const prefix = sceneName.substring(0, 2); // ch0, ch1, ch2, ch3
+    const chapter = chapters[prefix] || '';
+    // 匹配 ch3_r0 这种路由前缀
+    const sectionKey = Object.keys(sections).find(k => sceneName.startsWith(k));
+    const section = sectionKey ? sections[sectionKey] : '';
+
+    if (chapter && section) return `${chapter} › ${section}`;
+    if (chapter) return chapter;
+    return '';
+}
+
+function updateBreadcrumb(sceneName) {
+    const el = document.getElementById('scene-breadcrumb');
+    if (!el) return;
+    const bc = getBreadcrumb(sceneName);
+    el.textContent = bc;
+    el.style.display = bc ? '' : 'none';
+}
+
 async function switchScene(sceneName) {
+    currentSceneName = sceneName;
     // 高亮当前菜单
     sceneButtons.forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.scene-btn.kb-hover').forEach(b => b.classList.remove('kb-hover'));
     const btn = document.querySelector(`[data-scene="${sceneName}"]`);
     if (btn) btn.classList.add('active');
 
@@ -561,6 +733,7 @@ async function switchScene(sceneName) {
 
     try {
         const meta = getSceneMeta(sceneName);
+        updateBreadcrumb(sceneName);
 
         const RendererClass = SCENE_RENDERERS[sceneName];
         if (RendererClass) {

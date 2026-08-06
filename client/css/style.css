@@ -110,6 +110,31 @@ body {
     left: -11px;
 }
 
+/* ===== 场景搜索框 ===== */
+.scene-search {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    box-sizing: border-box;
+}
+.scene-search::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+.scene-search:focus {
+    border-color: var(--accent);
+    background: rgba(76, 201, 240, 0.04);
+}
+
 /* ===== 场景菜单按钮（在面板内） ===== */
 .menu-label {
     font-size: 0.66rem;
@@ -144,6 +169,11 @@ body {
     color: var(--accent);
     border-left-color: var(--accent);
     font-weight: 600;
+}
+.scene-btn.kb-hover {
+    background: rgba(76, 201, 240, 0.08);
+    color: var(--accent);
+    border-left-color: rgba(76, 201, 240, 0.5);
 }
 
 /* ===== 左停靠区 ===== */
@@ -333,6 +363,12 @@ body.is-dragging #right-column.no-panels #dock-right {
     flex-shrink: 0;
     padding: 14px 16px 10px;
     border-bottom: 1px solid var(--border);
+}
+#scene-breadcrumb {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
 }
 
 #scene-title {
