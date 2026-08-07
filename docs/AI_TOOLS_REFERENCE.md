@@ -139,7 +139,7 @@ POST /api/chat/{scene_name}
 
 ### 4.5 后端 HTTP 客户端
 
-使用 `httpx`（异步），证书验证 `certifi.where()`，超时 60 秒。不要改用 `requests`（同步）或 `openai` 包。
+使用 `httpx`（异步），证书验证 `verify=True`（系统证书），超时 60 秒。不要改用 `requests`（同步）或 `openai` 包。
 
 ## 五、如何新增工具
 

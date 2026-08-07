@@ -186,4 +186,4 @@ fix: <简短描述> — <根因>
 ---
 
 > **最后更新**：2026-08-06 · AI 答疑负责人创建
-> **配套文件**：[server/ai_chat.py](../server/ai_chat.py)（核心实现）、[docs/audit/work-brief-ai-chat-bugfixes.md](audit/work-brief-ai-chat-bugfixes.md)（bug 修复记录）、[docs/audit/work-brief-ai-apply-animation-leak.md](audit/work-brief-ai-apply-animation-leak.md)（动画残留问题报告）
+> **配套文件**：[server/ai_chat.py](../server/ai_chat.py)（核心实现）、[docs/AI_TOOLS_REFERENCE.md](AI_TOOLS_REFERENCE.md)（工具系统参考）
