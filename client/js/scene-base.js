@@ -131,6 +131,11 @@ export class SceneRenderer {
             this._subPanelDragCleanup();
             this._subPanelDragCleanup = null;
         }
+        // 清理参数面板弹窗的文档级监听器
+        if (this._paramPopupCleanups) {
+            this._paramPopupCleanups.forEach(fn => fn());
+            this._paramPopupCleanups = [];
+        }
         // 清空动态面板内容
         const pm = _pm();
         if (pm) {
@@ -586,6 +591,9 @@ export class SceneRenderer {
             }
         };
         document.addEventListener('click', closePopup, true);
+        // 注册清理函数，每次 _buildParams() 重建前移除
+        if (!this._paramPopupCleanups) this._paramPopupCleanups = [];
+        this._paramPopupCleanups.push(() => document.removeEventListener('click', closePopup, true));
 
         multiSel.appendChild(msBtn);
         multiSel.appendChild(msPopup);
@@ -934,6 +942,11 @@ export class SceneRenderer {
         const panel = this._panel('params');
         if (!panel) return;
         const body = panel.body;
+        // 清理上一次渲染注册的文档级监听器（多选弹窗 closePopup 等）
+        if (this._paramPopupCleanups) {
+            this._paramPopupCleanups.forEach(fn => fn());
+            this._paramPopupCleanups = [];
+        }
         body.innerHTML = '';
 
         if (!this.meta.params || Object.keys(this.meta.params).length === 0) {
