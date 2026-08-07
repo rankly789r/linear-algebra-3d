@@ -402,6 +402,7 @@ export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneNa
 
         const valSpan = document.createElement('span');
         valSpan.className = 'settings-grid-value';
+        valSpan.style.minWidth = '38px';
         valSpan.textContent = currentSpeed + 'x';
 
         slider.addEventListener('input', () => {
