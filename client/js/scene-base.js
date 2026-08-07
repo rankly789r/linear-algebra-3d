@@ -539,8 +539,9 @@ export class SceneRenderer {
                         const newState = { mode: currentMode };
                         newState[stateKey] = arr;
                         this._saveViewMode(prefix, newState);
-                        // 更新按钮文字
-                        msBtn.textContent = (arr.length === count ? '全部' : arr.map(n => subscripts[n]).join(',')) + ' ▾';
+                        // 更新按钮文字（普通数字，不用 Unicode 下标）
+                        const prefix_zh = currentMode === 'row' ? '行 ' : '列 ';
+                        msBtn.textContent = (arr.length === count ? '全部' : prefix_zh + arr.join(', ')) + ' ▾';
                         // 重绘内容区
                         this._renderMatrixGroupBody(subBody, group, currentMode, newState);
                     } catch (e) {
@@ -554,14 +555,14 @@ export class SceneRenderer {
             }
         };
 
-        // 按钮文字
+        // 按钮文字（用普通数字，可读性远好于 Unicode 下标）
         const updateMsBtnText = () => {
             if (mode === 'row') {
                 const rows = viewState.rows || [...Array(group.rows).keys()].map(i => i + 1);
-                msBtn.textContent = (rows.length === group.rows ? '全部' : rows.map(n => subscripts[n]).join(',')) + ' ▾';
+                msBtn.textContent = (rows.length === group.rows ? '全部' : '行 ' + rows.join(', ')) + ' ▾';
             } else if (mode === 'col') {
                 const cols = viewState.cols || [...Array(group.cols).keys()].map(i => i + 1);
-                msBtn.textContent = (cols.length === group.cols ? '全部' : cols.map(n => subscripts[n]).join(',')) + ' ▾';
+                msBtn.textContent = (cols.length === group.cols ? '全部' : '列 ' + cols.join(', ')) + ' ▾';
             }
         };
         updateMsBtnText();
@@ -620,10 +621,12 @@ export class SceneRenderer {
                 this._saveViewMode(prefix, newState);
                 // 更新下拉按钮可见性
                 multiSel.style.display = (newMode === 'row' || newMode === 'col') ? '' : 'none';
-                // 更新按钮文字
+                // 更新按钮文字（普通数字，不用 Unicode 下标）
                 if (newMode === 'row' || newMode === 'col') {
-                    const tmp = newMode === 'row' ? (newState.rows.length === group.rows ? '全部' : newState.rows.map(n => subscripts[n]).join(','))
-                        : (newState.cols.length === group.cols ? '全部' : newState.cols.map(n => subscripts[n]).join(','));
+                    const prefix_zh = newMode === 'row' ? '行 ' : '列 ';
+                    const tmp = newMode === 'row'
+                        ? (newState.rows.length === group.rows ? '全部' : prefix_zh + newState.rows.join(', '))
+                        : (newState.cols.length === group.cols ? '全部' : prefix_zh + newState.cols.join(', '));
                     msBtn.textContent = tmp + ' ▾';
                 }
                 this._renderMatrixGroupBody(subBody, group, newMode, newState);
