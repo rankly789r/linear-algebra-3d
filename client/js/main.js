@@ -50,6 +50,7 @@ window.panelManager = panelManager;
         <button class="scene-btn" data-scene="ch1_r1_det_volume">1.1 三阶行列式与平行六面体</button>
         <button class="scene-btn" data-scene="ch1_r2_det_properties">1.2 行列式的性质</button>
         <button class="scene-btn" data-scene="ch1_r3_permutation">排列、对换与空间定向</button>
+        <button class="scene-btn" data-scene="ch1_r4_cofactor">1.4 按行列展开的几何</button>
 
         <div class="menu-label">第2章 矩阵及其运算</div>
         <button class="scene-btn" data-scene="ch2_r0_matrix_multiply">2.0 矩阵乘法的几何含义</button>
@@ -244,6 +245,7 @@ import { Ch1R3PermutationRenderer } from './renderers/ch1_r3_permutation.js';
 import { EquationToPlaneRenderer } from './renderers/ch1_r0_equation_to_plane.js';
 import { ColSpaceRenderer } from './renderers/ch3_r7b_col_space.js';
 import { NullspaceRenderer } from './renderers/ch3_r6b_nullspace.js';
+import { CofactorRenderer } from './renderers/ch1_r4_cofactor.js';
 
 const SCENE_RENDERERS = {
     'ch0_r0_matrix_columns': MatrixColumnsRenderer,
@@ -265,6 +267,7 @@ const SCENE_RENDERERS = {
     'ch1_r1_det_volume': DetVolumeRenderer,
     'ch1_r2_det_properties': DetPropertiesRenderer,
     'ch1_r3_permutation': Ch1R3PermutationRenderer,
+    'ch1_r4_cofactor': CofactorRenderer,
     'ch2_r0_matrix_multiply': MatrixMultiplyRenderer,
     'ch2_r1_matrix_inverse': MatrixInverseRenderer,
     'ch2_r2_matrix_transpose': MatrixTransposeRenderer,
@@ -1127,6 +1130,28 @@ function getSceneMeta(sceneName) {
                 { label: '对换翻转定向（det变号）', type: 'unique', params: { a11:2,a12:1,a21:0,a22:3 } },
                 { label: '两列反向（det<0）', type: 'unique', params: { a11:1,a12:3,a21:2,a22:1 } },
                 { label: '两列共线（det=0）', type: 'degenerate', params: { a11:2,a12:4,a21:1,a22:2 } },
+            ]
+        },
+        'ch1_r4_cofactor': {
+            id: 'ch1_r4_cofactor',
+            title: '按行列展开的几何',
+            description: 'det=三重积=a·(b×c)。b×c=余子式向量，展开=点积，错行得0=垂直。',
+            params: {
+                a11: { label: 'a₁₁', type: 'float', default: 2, min: -5, max: 5, step: 0.1 },
+                a12: { label: 'a₁₂', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                a13: { label: 'a₁₃', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                a21: { label: 'a₂₁', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                a22: { label: 'a₂₂', type: 'float', default: 2, min: -5, max: 5, step: 0.1 },
+                a23: { label: 'a₂₃', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                a31: { label: 'a₃₁', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                a32: { label: 'a₃₂', type: 'float', default: 0, min: -5, max: 5, step: 0.1 },
+                a33: { label: 'a₃₃', type: 'float', default: 3, min: -5, max: 5, step: 0.1 },
+            },
+            presets: [
+                { label: '标准情形 det≠0', type: 'unique', params: { a11:2,a12:0,a13:0,a21:0,a22:2,a23:0,a31:0,a32:0,a33:3 } },
+                { label: 'a在底面内 det=0', type: 'degenerate', params: { a11:0,a12:0,a13:0,a21:2,a22:2,a23:0,a31:3,a32:0,a33:3 } },
+                { label: 'b∥c 底面退化', type: 'degenerate', params: { a11:2,a12:0,a13:0,a21:0,a22:2,a23:4,a31:0,a32:0,a33:0 } },
+                { label: 'a∥法向量 体积最大', type: 'unique', params: { a11:3,a12:0,a13:0,a21:0,a22:2,a23:0,a31:0,a32:0,a33:1 } },
             ]
         },
         'ch2_r4_cramer': {

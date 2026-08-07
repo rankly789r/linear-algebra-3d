@@ -47,6 +47,7 @@ from server.scenes.ch1_r3_permutation import Ch1R3Permutation
 from server.scenes.ch1_r0_equation_to_plane import Ch1R0EquationToPlane
 from server.scenes.ch3_r7b_col_space import Ch3R7BColSpace
 from server.scenes.ch3_r6b_nullspace import Ch3R6BNullspace
+from server.scenes.ch1_r4_cofactor import Ch1R4Cofactor
 
 SCENE_REGISTRY = {
     "ch0_r0_matrix_columns": Ch0R0MatrixColumns,
@@ -65,6 +66,7 @@ SCENE_REGISTRY = {
     "ch1_r1_det_volume": Ch1R1DetVolume,
     "ch1_r2_det_properties": Ch1R2DetProperties,
     "ch1_r3_permutation": Ch1R3Permutation,
+    "ch1_r4_cofactor": Ch1R4Cofactor,
     "ch1_r0_equation_to_plane": Ch1R0EquationToPlane,
     "ch3_r7b_col_space": Ch3R7BColSpace,
     "ch3_r6b_nullspace": Ch3R6BNullspace,
