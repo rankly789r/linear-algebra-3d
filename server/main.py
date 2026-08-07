@@ -82,7 +82,7 @@ SCENE_REGISTRY = {
 
 # ─── FastAPI 应用 ──────────────────────────────────────────
 
-app = FastAPI(title="线性代数学习系统", version="1.0.0")
+app = FastAPI(title="线性代数学习系统", version="2.5.0")
 
 CLIENT_DIR = Path(__file__).parent.parent / "client"
 
