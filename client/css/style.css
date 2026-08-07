@@ -920,6 +920,188 @@ body.is-dragging #right-column.no-panels #dock-right {
     background: var(--bg-tertiary);
 }
 
+/* ── 参数子面板（矩阵分组）── */
+.param-sub-panel {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.param-sub-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.param-sub-panel-arrow {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    width: 10px;
+    flex-shrink: 0;
+}
+
+.param-sub-panel-title {
+    flex: 1;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.param-view-select {
+    padding: 2px 4px;
+    font-size: 0.66rem;
+    font-family: inherit;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.param-rc-select {
+    padding: 2px 4px;
+    font-size: 0.66rem;
+    font-family: inherit;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.param-sub-panel-body {
+    padding: 6px 8px;
+    overflow-y: auto;
+    max-height: 320px;
+    transition: max-height 0.2s ease, padding 0.2s ease;
+}
+
+.param-sub-panel.collapsed .param-sub-panel-body {
+    max-height: 0 !important;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
+/* ── 矩阵网格（全部/按行/按列模式）── */
+.param-matrix-grid {
+    display: grid;
+    gap: 4px;
+}
+
+.param-grid-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 3px 4px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.param-cell-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.param-grid-cell .param-slider {
+    width: 100%;
+    height: 3px;
+    -webkit-appearance: none;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    margin: 2px 0;
+}
+
+.param-grid-cell .param-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+.param-grid-cell .param-number {
+    width: 100%;
+    padding: 2px 3px;
+    font-size: 0.66rem;
+    font-family: inherit;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.param-grid-cell .param-number:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.param-grid-cell .param-value {
+    font-size: 0.66rem;
+    color: var(--accent);
+    text-align: center;
+    min-height: 1em;
+}
+
+/* ── 自选勾选网格 ── */
+.param-pick-grid {
+    display: grid;
+    gap: 3px;
+    margin-bottom: 6px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.param-pick-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 3px;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.1s;
+}
+
+.param-pick-cell:hover {
+    background: rgba(76, 201, 240, 0.08);
+}
+
+.param-pick-cell input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
+}
+
+.param-pick-sliders {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.param-pick-hint {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 4px 0;
+    text-align: center;
+}
+
 /* 视角按钮 */
 .camera-btns {
     display: flex;

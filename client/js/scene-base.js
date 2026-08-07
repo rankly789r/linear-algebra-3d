@@ -57,8 +57,8 @@ export class SceneRenderer {
         this._subPanelOrder = (() => {  // 子面板排列顺序（持久化）
             try {
                 const saved = localStorage.getItem('la_lecture_subpanel_order');
-                return saved ? JSON.parse(saved) : ['basic', 'ai'];
-            } catch { return ['basic', 'ai']; }
+                return saved ? JSON.parse(saved) : ['ai', 'basic'];
+            } catch { return ['ai', 'basic']; }
         })();
 
         // 初始化默认参数
@@ -202,40 +202,475 @@ export class SceneRenderer {
 
     // ─── 参数滑块 ────────────────────────────────────────
 
-    _buildParams() {
-        const panel = this._panel('params');
-        if (!panel) return;
-        const body = panel.body;
-        body.innerHTML = '';
+    /**
+     * 扫描 meta.params，将 float/int 类型参数分类为矩阵组和"其他"。
+     * 矩阵元素的 key 匹配前缀+两个数字后缀（如 a11, a23, mat33）。
+     * 尺寸参数（_rows/_cols 结尾）归入"其他"。
+     * @returns {{ groups: Array, otherKeys: string[] }}
+     */
+    _detectMatrixGroups() {
+        if (!this.meta.params) return { groups: [], otherKeys: [] };
 
-        if (!this.meta.params || Object.keys(this.meta.params).length === 0) {
-            panel.hide();
-            return;
-        }
-        panel.show();
+        const matrixElements = {};  // { prefix: [{key, def, row, col}, ...] }
+        const otherKeys = [];
 
         for (const [key, def] of Object.entries(this.meta.params)) {
+            if (def.type !== 'float' && def.type !== 'int') {
+                otherKeys.push(key);
+                continue;
+            }
+            if (key.endsWith('_rows') || key.endsWith('_cols')) {
+                otherKeys.push(key);
+                continue;
+            }
+            const m = key.match(/^([a-zA-Z]+[a-zA-Z0-9_]*?)(\d)(\d)$/);
+            if (m) {
+                const prefix = m[1];
+                const row = parseInt(m[2]);
+                const col = parseInt(m[3]);
+                if (!matrixElements[prefix]) matrixElements[prefix] = [];
+                matrixElements[prefix].push({ key, def, row, col });
+            } else {
+                otherKeys.push(key);
+            }
+        }
+
+        const groups = [];
+        for (const [prefix, elements] of Object.entries(matrixElements)) {
+            if (elements.length < 2) {
+                elements.forEach(e => otherKeys.push(e.key));
+                continue;
+            }
+            const maxRow = Math.max(...elements.map(e => e.row));
+            const maxCol = Math.max(...elements.map(e => e.col));
+            elements.sort((a, b) => a.row - b.row || a.col - b.col);
+            groups.push({
+                prefix,
+                label: `矩阵 ${prefix.toUpperCase()} (${maxRow}×${maxCol})`,
+                elements,
+                rows: maxRow,
+                cols: maxCol,
+            });
+        }
+        return { groups, otherKeys };
+    }
+
+    /** 读取当前场景的子面板折叠状态 */
+    _loadGroupCollapsed(prefix) {
+        try {
+            const all = JSON.parse(localStorage.getItem('la_params_group_collapsed') || '{}');
+            const scene = all[this.meta.id] || {};
+            return !!scene[prefix];
+        } catch { return false; }
+    }
+
+    /** 保存单组折叠状态 */
+    _saveGroupCollapsed(prefix, collapsed) {
+        try {
+            const all = JSON.parse(localStorage.getItem('la_params_group_collapsed') || '{}');
+            if (!all[this.meta.id]) all[this.meta.id] = {};
+            all[this.meta.id][prefix] = collapsed;
+            localStorage.setItem('la_params_group_collapsed', JSON.stringify(all));
+        } catch {}
+    }
+
+    /** 读取当前场景某组的视图模式 */
+    _loadViewMode(prefix) {
+        try {
+            const all = JSON.parse(localStorage.getItem('la_params_view_mode') || '{}');
+            const scene = all[this.meta.id] || {};
+            const v = scene[prefix];
+            if (typeof v === 'string') return { mode: v };
+            return v && v.mode ? v : { mode: 'all' };
+        } catch { return { mode: 'all' }; }
+    }
+
+    /** 保存视图模式 */
+    _saveViewMode(prefix, modeState) {
+        try {
+            const all = JSON.parse(localStorage.getItem('la_params_view_mode') || '{}');
+            if (!all[this.meta.id]) all[this.meta.id] = {};
+            all[this.meta.id][prefix] = modeState;
+            localStorage.setItem('la_params_view_mode', JSON.stringify(all));
+        } catch {}
+    }
+
+    /** 读取当前场景某组的自选勾选 */
+    _loadPick(prefix) {
+        try {
+            const all = JSON.parse(localStorage.getItem('la_params_pick') || '{}');
+            const scene = all[this.meta.id] || {};
+            return scene[prefix] || [];
+        } catch { return []; }
+    }
+
+    /** 保存自选勾选 */
+    _savePick(prefix, picked) {
+        try {
+            const all = JSON.parse(localStorage.getItem('la_params_pick') || '{}');
+            if (!all[this.meta.id]) all[this.meta.id] = {};
+            all[this.meta.id][prefix] = picked;
+            localStorage.setItem('la_params_pick', JSON.stringify(all));
+        } catch {}
+    }
+
+    /**
+     * 为单个参数创建滑块 + 数值输入 + 值标签，挂载到 container。
+     * @returns {{ slider, numInput }} 供外部在 change 事件中联动
+     */
+    _renderSliderRow(container, key, def) {
+        // 读取用户自定义参数范围
+        let paramMin = def.min;
+        let paramMax = def.max;
+        try {
+            const ranges = JSON.parse(localStorage.getItem('la_param_ranges') || '{}');
+            const sceneRanges = ranges[this.meta.id];
+            if (sceneRanges && sceneRanges[key]) {
+                paramMin = sceneRanges[key].min ?? def.min;
+                paramMax = sceneRanges[key].max ?? def.max;
+            }
+        } catch { /* ignore */ }
+
+        const value = this.params[key] ?? def.default;
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = paramMin;
+        slider.max = paramMax;
+        slider.step = def.step || 0.1;
+        slider.value = value;
+        slider.dataset.paramKey = key;
+        slider.className = 'param-slider';
+
+        const numInput = document.createElement('input');
+        numInput.type = 'number';
+        numInput.min = paramMin;
+        numInput.max = paramMax;
+        numInput.step = def.step || 0.1;
+        numInput.value = value;
+        numInput.className = 'param-number';
+
+        const valSpan = document.createElement('span');
+        valSpan.className = 'param-value';
+        valSpan.dataset.paramValue = key;
+
+        // 双向联动
+        slider.addEventListener('input', () => {
+            const val = def.type === 'int'
+                ? parseInt(slider.value)
+                : parseFloat(parseFloat(slider.value).toFixed(4));
+            this.params[key] = val;
+            numInput.value = val;
+            this._updateParamValueLabel(key, val);
+            this._throttleCompute();
+        });
+        slider.addEventListener('change', async () => {
+            this._clearThrottle();
+            await this._computeAndRender(this.params, true);
+        });
+        numInput.addEventListener('input', () => {
+            const val = def.type === 'int'
+                ? parseInt(numInput.value)
+                : parseFloat(parseFloat(numInput.value).toFixed(4));
+            if (!isNaN(val)) {
+                this.params[key] = val;
+                slider.value = val;
+                this._updateParamValueLabel(key, val);
+                this._throttleCompute();
+            }
+        });
+        numInput.addEventListener('change', async () => {
+            this._clearThrottle();
+            await this._computeAndRender(this.params, true);
+        });
+
+        container.appendChild(slider);
+        container.appendChild(numInput);
+        container.appendChild(valSpan);
+
+        return { slider, numInput };
+    }
+
+    /** 渲染一个矩阵组的子面板 */
+    _renderMatrixGroup(body, group) {
+        const prefix = group.prefix;
+        const collapsed = this._loadGroupCollapsed(prefix);
+        const viewState = this._loadViewMode(prefix);
+        const mode = viewState.mode || 'all';
+
+        // ── 子面板容器 ──
+        const subPanel = document.createElement('div');
+        subPanel.className = 'param-sub-panel' + (collapsed ? ' collapsed' : '');
+        subPanel.dataset.groupPrefix = prefix;
+
+        // ── 标题栏 ──
+        const header = document.createElement('div');
+        header.className = 'param-sub-panel-header';
+
+        const arrow = document.createElement('span');
+        arrow.className = 'param-sub-panel-arrow';
+        arrow.textContent = collapsed ? '▶' : '▼';
+
+        const title = document.createElement('span');
+        title.className = 'param-sub-panel-title';
+        title.textContent = group.label;
+
+        header.appendChild(arrow);
+        header.appendChild(title);
+
+        // 视图模式下拉
+        const viewSel = document.createElement('select');
+        viewSel.className = 'param-view-select';
+        ['all', 'row', 'col', 'pick'].forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = { all: '全部', row: '按行', col: '按列', pick: '自选' }[m];
+            if (m === mode) opt.selected = true;
+            viewSel.appendChild(opt);
+        });
+
+        // 行/列号选择器（仅在按行/按列模式显示）
+        const rcSel = document.createElement('select');
+        rcSel.className = 'param-rc-select';
+        rcSel.style.display = (mode === 'row' || mode === 'col') ? '' : 'none';
+        const rcMax = mode === 'row' ? group.rows : group.cols;
+        const rcVal = (mode === 'row' ? viewState.row : viewState.col) || 1;
+        for (let i = 1; i <= rcMax; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = (mode === 'row' ? '行 ' : '列 ') + i;
+            if (i === rcVal) opt.selected = true;
+            rcSel.appendChild(opt);
+        }
+
+        header.appendChild(viewSel);
+        header.appendChild(rcSel);
+        subPanel.appendChild(header);
+
+        // 折叠/展开
+        header.addEventListener('click', (e) => {
+            if (e.target.tagName === 'SELECT') return;
+            const nowC = !subPanel.classList.contains('collapsed');
+            subPanel.classList.toggle('collapsed');
+            arrow.textContent = nowC ? '▶' : '▼';
+            this._saveGroupCollapsed(prefix, nowC);
+        });
+
+        // ── 内容区 ──
+        const subBody = document.createElement('div');
+        subBody.className = 'param-sub-panel-body';
+        this._renderMatrixGroupBody(subBody, group, mode, rcVal);
+        subPanel.appendChild(subBody);
+
+        // 视图模式切换
+        viewSel.addEventListener('change', () => {
+            const newMode = viewSel.value;
+            const newState = { mode: newMode };
+            if (newMode === 'row') {
+                newState.row = parseInt(rcSel.value) || 1;
+            } else if (newMode === 'col') {
+                newState.col = parseInt(rcSel.value) || 1;
+            }
+            rcSel.style.display = (newMode === 'row' || newMode === 'col') ? '' : 'none';
+            this._saveViewMode(prefix, newState);
+            // 重建行/列选择器选项
+            if (newMode === 'row' || newMode === 'col') {
+                const max = newMode === 'row' ? group.rows : group.cols;
+                rcSel.innerHTML = '';
+                for (let i = 1; i <= max; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = (newMode === 'row' ? '行 ' : '列 ') + i;
+                    rcSel.appendChild(opt);
+                }
+            }
+            this._renderMatrixGroupBody(subBody, group, newMode, newState.row || newState.col || 1);
+        });
+
+        rcSel.addEventListener('change', () => {
+            const newMode = rcSel.parentElement.querySelector('.param-view-select').value;
+            const newState = { mode: newMode };
+            if (newMode === 'row') newState.row = parseInt(rcSel.value);
+            else newState.col = parseInt(rcSel.value);
+            this._saveViewMode(prefix, newState);
+            this._renderMatrixGroupBody(subBody, group, newMode, newState.row || newState.col || 1);
+        });
+
+        body.appendChild(subPanel);
+    }
+
+    /** 按当前视图模式重绘矩阵组内容区 */
+    _renderMatrixGroupBody(subBody, group, mode, rcVal) {
+        subBody.innerHTML = '';
+
+        if (mode === 'row') {
+            // 按行：只显示指定行的元素
+            const rowElements = group.elements.filter(e => e.row === rcVal);
+            const grid = document.createElement('div');
+            grid.className = 'param-matrix-grid';
+            grid.style.gridTemplateColumns = `repeat(${group.cols}, 1fr)`;
+            // 按 group.cols 遍历，空位放占位符
+            for (let c = 1; c <= group.cols; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'param-grid-cell';
+                const elem = rowElements.find(e => e.col === c);
+                if (elem) {
+                    const label = document.createElement('span');
+                    label.className = 'param-cell-label';
+                    label.textContent = elem.def.label;
+                    cell.appendChild(label);
+                    this._renderSliderRow(cell, elem.key, elem.def);
+                }
+                grid.appendChild(cell);
+            }
+            subBody.appendChild(grid);
+
+        } else if (mode === 'col') {
+            // 按列：只显示指定列的元素
+            const colElements = group.elements.filter(e => e.col === rcVal);
+            const grid = document.createElement('div');
+            grid.className = 'param-matrix-grid';
+            grid.style.gridTemplateColumns = '1fr';
+            colElements.forEach(elem => {
+                const cell = document.createElement('div');
+                cell.className = 'param-grid-cell';
+                const label = document.createElement('span');
+                label.className = 'param-cell-label';
+                label.textContent = elem.def.label;
+                cell.appendChild(label);
+                this._renderSliderRow(cell, elem.key, elem.def);
+                grid.appendChild(cell);
+            });
+            subBody.appendChild(grid);
+
+        } else if (mode === 'pick') {
+            // 自选：上部勾选网格 + 下部仅显示勾选的滑块
+            const picked = new Set(this._loadPick(group.prefix));
+            if (picked.size === 0) {
+                // 首次进入自选模式，默认全选
+                group.elements.forEach(e => picked.add(e.key));
+            }
+
+            const pickGrid = document.createElement('div');
+            pickGrid.className = 'param-pick-grid';
+            pickGrid.style.gridTemplateColumns = `repeat(${group.cols}, 1fr)`;
+
+            const onPickChange = () => {
+                // 重建滑块区
+                const sliderArea = subBody.querySelector('.param-pick-sliders');
+                if (!sliderArea) return;
+                sliderArea.innerHTML = '';
+                const currentPicked = [];
+                pickGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    if (cb.checked) currentPicked.push(cb.dataset.pickKey);
+                });
+                this._savePick(group.prefix, currentPicked);
+
+                if (currentPicked.length === 0) {
+                    const hint = document.createElement('div');
+                    hint.className = 'param-pick-hint';
+                    hint.textContent = '请在上方勾选需要调节的参数';
+                    sliderArea.appendChild(hint);
+                    return;
+                }
+                group.elements.forEach(elem => {
+                    if (!currentPicked.includes(elem.key)) return;
+                    const row = document.createElement('div');
+                    row.className = 'param-row';
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'param-label';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'name';
+                    nameSpan.textContent = elem.def.label;
+                    labelDiv.appendChild(nameSpan);
+                    row.appendChild(labelDiv);
+                    const inputRow = document.createElement('div');
+                    inputRow.className = 'param-input-row';
+                    this._renderSliderRow(inputRow, elem.key, elem.def);
+                    row.appendChild(inputRow);
+                    sliderArea.appendChild(row);
+                });
+            };
+
+            // 勾选网格
+            for (const elem of group.elements) {
+                const cell = document.createElement('label');
+                cell.className = 'param-pick-cell';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.dataset.pickKey = elem.key;
+                cb.checked = picked.has(elem.key);
+                cb.addEventListener('change', onPickChange);
+                cell.appendChild(cb);
+                // 使用下标数字显示（如 ₁₁, ₂₃）
+                const subscripts = '₀₁₂₃₄₅₆₇₈₉';
+                const label = document.createElement('span');
+                label.textContent = subscripts[elem.row] + subscripts[elem.col];
+                cell.appendChild(label);
+                pickGrid.appendChild(cell);
+            }
+            subBody.appendChild(pickGrid);
+
+            const sliderArea = document.createElement('div');
+            sliderArea.className = 'param-pick-sliders';
+            subBody.appendChild(sliderArea);
+            onPickChange();  // 触发初始渲染
+
+        } else {
+            // 全部模式：CSS Grid N 列
+            const grid = document.createElement('div');
+            grid.className = 'param-matrix-grid';
+            grid.style.gridTemplateColumns = `repeat(${group.cols}, 1fr)`;
+            group.elements.forEach(elem => {
+                const cell = document.createElement('div');
+                cell.className = 'param-grid-cell';
+                const label = document.createElement('span');
+                label.className = 'param-cell-label';
+                label.textContent = elem.def.label;
+                cell.appendChild(label);
+                this._renderSliderRow(cell, elem.key, elem.def);
+                grid.appendChild(cell);
+            });
+            subBody.appendChild(grid);
+        }
+    }
+
+    /** 渲染"其他"参数组（非矩阵参数） */
+    _renderOtherGroup(body, otherKeys) {
+        const subPanel = document.createElement('div');
+        subPanel.className = 'param-sub-panel';
+        subPanel.dataset.groupPrefix = '_other';
+
+        // 标题栏
+        const header = document.createElement('div');
+        header.className = 'param-sub-panel-header';
+        const arrow = document.createElement('span');
+        arrow.className = 'param-sub-panel-arrow';
+        arrow.textContent = '▼';
+        const title = document.createElement('span');
+        title.className = 'param-sub-panel-title';
+        title.textContent = '其他参数';
+        header.appendChild(arrow);
+        header.appendChild(title);
+        subPanel.appendChild(header);
+
+        const subBody = document.createElement('div');
+        subBody.className = 'param-sub-panel-body';
+
+        otherKeys.forEach(key => {
+            const def = this.meta.params[key];
+            if (!def) return;
             const row = document.createElement('div');
             row.className = 'param-row';
 
-            // 标签 + 当前值
             const labelDiv = document.createElement('div');
             labelDiv.className = 'param-label';
-
             const nameSpan = document.createElement('span');
             nameSpan.className = 'name';
             nameSpan.textContent = def.label;
             labelDiv.appendChild(nameSpan);
-
-            const valSpan = document.createElement('span');
-            valSpan.className = 'param-value';
-            valSpan.style.cssText = 'font-size:0.72rem;color:var(--accent);font-weight:600;';
-            valSpan.dataset.paramValue = key;
-            labelDiv.appendChild(valSpan);
-
             row.appendChild(labelDiv);
 
-            // 输入行
             const inputRow = document.createElement('div');
             inputRow.className = 'param-input-row';
 
@@ -251,32 +686,24 @@ export class SceneRenderer {
                 });
                 select.addEventListener('change', async () => {
                     this.params[key] = select.value;
-                    // 矩阵计算器：运算类型变化时，可能需要显示/隐藏 B 矩阵相关参数
-                    if (key === 'operation') {
-                        this._buildParams();
-                    }
+                    if (key === 'operation') this._buildParams();
                     await this._computeAndRender(this.params, true);
                 });
                 inputRow.appendChild(select);
             } else if (def.type === 'matrix') {
-                // 矩阵网格输入：动态尺寸
-                // 若 key 形如 "matrix_A"，则从 this.params 中读取 A_rows / A_cols
                 let rows = def.rows || 2;
                 let cols = def.cols || 2;
                 const suffixMatch = key.match(/^matrix_(.+)$/);
                 if (suffixMatch) {
-                    const suffix = suffixMatch[1];  // 例如 "A" 或 "B"
+                    const suffix = suffixMatch[1];
                     if (this.params[suffix + '_rows'] !== undefined) rows = this.params[suffix + '_rows'];
                     if (this.params[suffix + '_cols'] !== undefined) cols = this.params[suffix + '_cols'];
                 }
                 const grid = document.createElement('div');
                 grid.className = 'matrix-input-grid';
-
-                // 初始化或加载默认值
                 if (!this.params[key] || !Array.isArray(this.params[key])) {
                     this.params[key] = def.default || Array.from({ length: rows }, () => Array(cols).fill(0));
                 }
-
                 for (let r = 0; r < rows; r++) {
                     const rowEl = document.createElement('div');
                     rowEl.className = 'matrix-input-row';
@@ -304,79 +731,44 @@ export class SceneRenderer {
                 }
                 inputRow.appendChild(grid);
             } else {
-                // 滑块 — 读取用户自定义参数范围
-                let paramMin = def.min;
-                let paramMax = def.max;
-                try {
-                    const ranges = JSON.parse(localStorage.getItem('la_param_ranges') || '{}');
-                    const sceneRanges = ranges[this.meta.id];
-                    if (sceneRanges && sceneRanges[key]) {
-                        paramMin = sceneRanges[key].min ?? def.min;
-                        paramMax = sceneRanges[key].max ?? def.max;
-                    }
-                } catch { /* ignore */ }
-
-                const slider = document.createElement('input');
-                slider.type = 'range';
-                slider.min = paramMin;
-                slider.max = paramMax;
-                slider.step = def.step || 0.1;
-                slider.value = this.params[key] ?? def.default;
-                slider.dataset.paramKey = key;
-
-                slider.addEventListener('input', () => {
-                    const val = def.type === 'int'
-                        ? parseInt(slider.value)
-                        : parseFloat(parseFloat(slider.value).toFixed(4));
-                    this.params[key] = val;
-                    // 即时更新数字输入框
-                    const numInput = inputRow.querySelector('input[type="number"]');
-                    if (numInput) numInput.value = val;
-                    // 即时更新标签上的值
-                    this._updateParamValueLabel(key, val);
-                    // 节流调用后端
-                    this._throttleCompute();
-                });
-
-                slider.addEventListener('change', async () => {
-                    this._clearThrottle();
-                    // 尺寸类参数变化时，重建参数面板以更新矩阵网格
-                    if (key.endsWith('_rows') || key.endsWith('_cols')) {
+                // float / int — 使用统一的滑块渲染
+                const { slider } = this._renderSliderRow(inputRow, key, def);
+                // 尺寸参数变化时重建面板以刷新矩阵网格
+                if (key.endsWith('_rows') || key.endsWith('_cols')) {
+                    slider.addEventListener('change', () => {
                         this._buildParams();
-                    }
-                    await this._computeAndRender(this.params, true);
-                });
-
-                inputRow.appendChild(slider);
-
-                // 数值输入
-                const numInput = document.createElement('input');
-                numInput.type = 'number';
-                numInput.min = paramMin;
-                numInput.max = paramMax;
-                numInput.step = def.step || 0.1;
-                numInput.value = this.params[key] ?? def.default;
-                numInput.addEventListener('input', () => {
-                    const val = def.type === 'int'
-                        ? parseInt(numInput.value)
-                        : parseFloat(parseFloat(numInput.value).toFixed(4));
-                    if (!isNaN(val)) {
-                        this.params[key] = val;
-                        const s = inputRow.querySelector('input[type="range"]');
-                        if (s) s.value = val;
-                        this._updateParamValueLabel(key, val);
-                        this._throttleCompute();
-                    }
-                });
-                numInput.addEventListener('change', async () => {
-                    this._clearThrottle();
-                    await this._computeAndRender(this.params, true);
-                });
-                inputRow.appendChild(numInput);
+                    });
+                }
             }
 
             row.appendChild(inputRow);
-            body.appendChild(row);
+            subBody.appendChild(row);
+        });
+
+        subPanel.appendChild(subBody);
+        body.appendChild(subPanel);
+    }
+
+    _buildParams() {
+        const panel = this._panel('params');
+        if (!panel) return;
+        const body = panel.body;
+        body.innerHTML = '';
+
+        if (!this.meta.params || Object.keys(this.meta.params).length === 0) {
+            panel.hide();
+            return;
+        }
+        panel.show();
+
+        const { groups, otherKeys } = this._detectMatrixGroups();
+
+        // 渲染矩阵组子面板
+        groups.forEach(g => this._renderMatrixGroup(body, g));
+
+        // 渲染"其他"参数组（仅当有非矩阵参数时）
+        if (otherKeys.length > 0) {
+            this._renderOtherGroup(body, otherKeys);
         }
 
         // 初始化参数值标签
@@ -420,8 +812,10 @@ export class SceneRenderer {
             const slider = body.querySelector(`input[type="range"][data-param-key="${key}"]`);
             if (slider) {
                 slider.value = this.params[key];
+                // 兼容旧布局 (.param-input-row) 和新网格布局 (.param-grid-cell)
                 const row = slider.closest('.param-input-row');
-                const numInput = row?.querySelector('input[type="number"]');
+                const numInput = row?.querySelector('input[type="number"]')
+                    || slider.parentElement?.querySelector('.param-number');
                 if (numInput) numInput.value = this.params[key];
             }
         }
