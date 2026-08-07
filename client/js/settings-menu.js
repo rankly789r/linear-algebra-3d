@@ -62,7 +62,7 @@ function updateGridRenderer(range) {
  * @param {Function} opts.getSceneName - () => currentSceneName
  * @param {Function} opts.getRenderer - () => currentSceneRenderer
  */
-export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneName, getRenderer }) {
+export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneName, getRenderer, getControls }) {
     _scene = scene;
 
     // ── 初始化网格 ──────────────────────────────────────────
@@ -425,7 +425,76 @@ export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneNa
     })();
 
     // ═══════════════════════════════════════════════════════
-    // 6. 重置按钮
+    // 6. 鼠标交互子菜单
+    // ═══════════════════════════════════════════════════════
+
+    const mouseBtnBody = document.getElementById('settings-mouse-btn-body');
+
+    function _loadMouseSwap() {
+        try { return localStorage.getItem('la_mouse_swap') === '1'; }
+        catch { return false; }
+    }
+
+    function _saveMouseSwap(swapped) {
+        try { localStorage.setItem('la_mouse_swap', swapped ? '1' : '0'); } catch {}
+    }
+
+    function _applyMouseButtons(swapped) {
+        const ctrl = getControls?.();
+        if (!ctrl) return;
+        if (swapped) {
+            ctrl.mouseButtons = {
+                LEFT: THREE.MOUSE.PAN,
+                MIDDLE: THREE.MOUSE.DOLLY,
+                RIGHT: THREE.MOUSE.ROTATE,
+            };
+        } else {
+            ctrl.mouseButtons = {
+                LEFT: THREE.MOUSE.ROTATE,
+                MIDDLE: THREE.MOUSE.DOLLY,
+                RIGHT: THREE.MOUSE.PAN,
+            };
+        }
+    }
+
+    (function buildMouseBtnUI() {
+        const swapped = _loadMouseSwap();
+        _applyMouseButtons(swapped);
+
+        const row = document.createElement('div');
+        row.className = 'settings-grid-row';
+
+        const label = document.createElement('span');
+        label.style.cssText = 'flex:1;font-size:0.7rem;';
+        label.textContent = swapped ? '左平移 · 右旋转' : '左旋转 · 右平移';
+
+        const swapBtn = document.createElement('button');
+        swapBtn.style.cssText =
+            'padding:3px 10px;font-size:0.72rem;' +
+            'background:' + (swapped ? 'var(--accent)' : '#444') + ';' +
+            'color:#fff;border:none;border-radius:3px;cursor:pointer;flex-shrink:0;';
+        swapBtn.textContent = swapped ? '已交换' : '交换';
+
+        swapBtn.addEventListener('click', () => {
+            const nowSwapped = !_loadMouseSwap();
+            _saveMouseSwap(nowSwapped);
+            _applyMouseButtons(nowSwapped);
+            swapBtn.textContent = nowSwapped ? '已交换' : '交换';
+            swapBtn.style.background = nowSwapped ? 'var(--accent)' : '#444';
+            label.textContent = nowSwapped ? '左平移 · 右旋转' : '左旋转 · 右平移';
+        });
+
+        row.appendChild(label);
+        row.appendChild(swapBtn);
+        mouseBtnBody.appendChild(row);
+
+        // 暴露引用给重置按钮
+        mouseBtnBody._swapBtn = swapBtn;
+        mouseBtnBody._label = label;
+    })();
+
+    // ═══════════════════════════════════════════════════════
+    // 7. 重置按钮
     // ═══════════════════════════════════════════════════════
 
     const resetRow = document.createElement('div');
@@ -466,6 +535,15 @@ export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneNa
         // 重置参数范围
         _saveParamRanges({});
         refreshParamRangeUI();
+
+        // 重置鼠标交互
+        _saveMouseSwap(false);
+        _applyMouseButtons(false);
+        if (mouseBtnBody._swapBtn) {
+            mouseBtnBody._swapBtn.textContent = '交换';
+            mouseBtnBody._swapBtn.style.background = '#444';
+            mouseBtnBody._label.textContent = '左旋转 · 右平移';
+        }
 
         // 重置面板可见性（先设值再保存，避免保存中间状态）
         panelList.querySelectorAll('input[type="checkbox"]').forEach(cb => {

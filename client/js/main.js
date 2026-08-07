@@ -319,16 +319,6 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a2e);
 scene.fog = new THREE.Fog(0x1a1a2e, 12, 30);
 
-// 初始化设置菜单（网格、颜色、面板可见性、参数范围）
-// 在 scene 创建后调用，替代原来的 IIFE + window._applySavedThemeBg 回调
-initSettingsMenu({
-    scene,
-    panelManager,
-    getSceneMeta,
-    getSceneName: () => currentSceneName,
-    getRenderer: () => currentSceneRenderer,
-});
-
 const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 50);
 camera.up.set(0, 0, 1);  // Z轴向上
 camera.position.set(7, -7, 5);
@@ -342,6 +332,17 @@ controls.minDistance = 0.5;
 controls.maxDistance = 30;
 controls.maxPolarAngle = Math.PI * 0.85;
 controls.update();
+
+// 初始化设置菜单（网格、颜色、面板可见性、参数范围、鼠标交互）
+// 必须在 controls 创建之后调用（鼠标交互需要访问 controls）
+initSettingsMenu({
+    scene,
+    panelManager,
+    getSceneMeta,
+    getSceneName: () => currentSceneName,
+    getRenderer: () => currentSceneRenderer,
+    getControls: () => controls,
+});
 
 // ─── 基础场景元素 ────────────────────────────────────────
 
