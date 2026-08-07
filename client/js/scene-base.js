@@ -328,7 +328,17 @@ export class SceneRenderer {
             const scene = all[this.meta.id] || {};
             const v = scene[prefix];
             if (typeof v === 'string') return { mode: v };
-            return v && v.mode ? v : { mode: 'all' };
+            if (!v || !v.mode) return { mode: 'all' };
+            // 向后兼容：旧格式 {mode:"row", row:2} → 新格式 {mode:"row", rows:[2]}
+            if (v.mode === 'row' && !v.rows) {
+                v.rows = (v.row != null) ? [v.row] : [1];
+                delete v.row;
+            }
+            if (v.mode === 'col' && !v.cols) {
+                v.cols = (v.col != null) ? [v.col] : [1];
+                delete v.col;
+            }
+            return v;
         } catch { return { mode: 'all' }; }
     }
 
@@ -444,6 +454,7 @@ export class SceneRenderer {
         const collapsed = this._loadGroupCollapsed(prefix);
         const viewState = this._loadViewMode(prefix);
         const mode = viewState.mode || 'all';
+        const subscripts = '₀₁₂₃₄₅₆₇₈₉';
 
         // ── 子面板容器 ──
         const subPanel = document.createElement('div');
@@ -474,29 +485,105 @@ export class SceneRenderer {
             if (m === mode) opt.selected = true;
             viewSel.appendChild(opt);
         });
-
-        // 行/列号选择器（仅在按行/按列模式显示）
-        const rcSel = document.createElement('select');
-        rcSel.className = 'param-rc-select';
-        rcSel.style.display = (mode === 'row' || mode === 'col') ? '' : 'none';
-        const rcMax = mode === 'row' ? group.rows : group.cols;
-        const rcVal = (mode === 'row' ? viewState.row : viewState.col) || 1;
-        for (let i = 1; i <= rcMax; i++) {
-            const opt = document.createElement('option');
-            opt.value = i;
-            opt.textContent = (mode === 'row' ? '行 ' : '列 ') + i;
-            if (i === rcVal) opt.selected = true;
-            rcSel.appendChild(opt);
-        }
-
         header.appendChild(viewSel);
-        header.appendChild(rcSel);
+
+        // ── 多选下拉（按行/按列时出现）──
+        const multiSel = document.createElement('div');
+        multiSel.className = 'param-multi-sel';
+        multiSel.style.display = (mode === 'row' || mode === 'col') ? '' : 'none';
+
+        const msBtn = document.createElement('button');
+        msBtn.className = 'param-multi-sel-btn';
+        msBtn.type = 'button';
+
+        const msPopup = document.createElement('div');
+        msPopup.className = 'param-multi-sel-popup';
+
+        const buildMsPopup = () => {
+            msPopup.innerHTML = '';
+            // 实时读取最新状态（避免闭包过期）
+            const liveState = this._loadViewMode(prefix);
+            const liveMode = liveState.mode || 'all';
+            let count, checkedSet, labelFn, stateKey;
+            if (liveMode === 'row') {
+                count = group.rows;
+                checkedSet = new Set(liveState.rows || [...Array(group.rows).keys()].map(i => i + 1));
+                labelFn = r => '行' + subscripts[r];
+                stateKey = 'rows';
+            } else {
+                count = group.cols;
+                checkedSet = new Set(liveState.cols || [...Array(group.cols).keys()].map(i => i + 1));
+                labelFn = c => '列' + subscripts[c];
+                stateKey = 'cols';
+            }
+
+            const currentMode = liveMode;
+            for (let i = 1; i <= count; i++) {
+                const lbl = document.createElement('label');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = i;
+                cb.checked = checkedSet.has(i);
+                cb.addEventListener('change', () => {
+                    const arr = [];
+                    msPopup.querySelectorAll('input[type="checkbox"]').forEach(c => {
+                        if (c.checked) arr.push(parseInt(c.value));
+                    });
+                    const newState = { mode: currentMode };
+                    newState[stateKey] = arr;
+                    this._saveViewMode(prefix, newState);
+                    // 更新按钮文字
+                    msBtn.textContent = (arr.length === count ? '全部' : arr.map(n => subscripts[n]).join(',')) + ' ▾';
+                    // 重绘内容区
+                    this._renderMatrixGroupBody(subBody, group, currentMode, newState);
+                });
+                lbl.appendChild(cb);
+                lbl.appendChild(document.createTextNode(labelFn(i)));
+                msPopup.appendChild(lbl);
+            }
+        };
+
+        // 按钮文字
+        const updateMsBtnText = () => {
+            if (mode === 'row') {
+                const rows = viewState.rows || [...Array(group.rows).keys()].map(i => i + 1);
+                msBtn.textContent = (rows.length === group.rows ? '全部' : rows.map(n => subscripts[n]).join(',')) + ' ▾';
+            } else {
+                const cols = viewState.cols || [...Array(group.cols).keys()].map(i => i + 1);
+                msBtn.textContent = (cols.length === group.cols ? '全部' : cols.map(n => subscripts[n]).join(',')) + ' ▾';
+            }
+        };
+        updateMsBtnText();
+
+        // 按钮点击：切换弹出菜单
+        msBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const wasOpen = msPopup.classList.contains('open');
+            // 关闭所有其他弹出菜单
+            document.querySelectorAll('.param-multi-sel-popup.open').forEach(p => p.classList.remove('open'));
+            if (!wasOpen) {
+                buildMsPopup();
+                msPopup.classList.add('open');
+            }
+        });
+
+        // 点击外部关闭
+        const closePopup = (e) => {
+            if (!multiSel.contains(e.target)) {
+                msPopup.classList.remove('open');
+            }
+        };
+        document.addEventListener('click', closePopup, true);
+
+        multiSel.appendChild(msBtn);
+        multiSel.appendChild(msPopup);
+        header.appendChild(multiSel);
         header.appendChild(arrow);
         subPanel.appendChild(header);
 
         // 折叠/展开
         header.addEventListener('click', (e) => {
-            if (e.target.tagName === 'SELECT') return;
+            if (e.target.tagName === 'SELECT' || e.target.closest('.param-multi-sel')) return;
             const nowC = !subPanel.classList.contains('collapsed');
             subPanel.classList.toggle('collapsed');
             arrow.textContent = nowC ? '▶' : '▼';
@@ -506,7 +593,7 @@ export class SceneRenderer {
         // ── 内容区 ──
         const subBody = document.createElement('div');
         subBody.className = 'param-sub-panel-body';
-        this._renderMatrixGroupBody(subBody, group, mode, rcVal);
+        this._renderMatrixGroupBody(subBody, group, mode, viewState);
         subPanel.appendChild(subBody);
 
         // 视图模式切换
@@ -514,132 +601,129 @@ export class SceneRenderer {
             const newMode = viewSel.value;
             const newState = { mode: newMode };
             if (newMode === 'row') {
-                newState.row = parseInt(rcSel.value) || 1;
+                newState.rows = [...Array(group.rows).keys()].map(i => i + 1);
             } else if (newMode === 'col') {
-                newState.col = parseInt(rcSel.value) || 1;
+                newState.cols = [...Array(group.cols).keys()].map(i => i + 1);
             }
-            rcSel.style.display = (newMode === 'row' || newMode === 'col') ? '' : 'none';
             this._saveViewMode(prefix, newState);
-            // 重建行/列选择器选项
+            // 更新下拉按钮可见性
+            multiSel.style.display = (newMode === 'row' || newMode === 'col') ? '' : 'none';
+            // 更新按钮文字
             if (newMode === 'row' || newMode === 'col') {
-                const max = newMode === 'row' ? group.rows : group.cols;
-                rcSel.innerHTML = '';
-                for (let i = 1; i <= max; i++) {
-                    const opt = document.createElement('option');
-                    opt.value = i;
-                    opt.textContent = (newMode === 'row' ? '行 ' : '列 ') + i;
-                    rcSel.appendChild(opt);
-                }
+                const tmp = newMode === 'row' ? (newState.rows.length === group.rows ? '全部' : newState.rows.map(n => subscripts[n]).join(','))
+                    : (newState.cols.length === group.cols ? '全部' : newState.cols.map(n => subscripts[n]).join(','));
+                msBtn.textContent = tmp + ' ▾';
             }
-            this._renderMatrixGroupBody(subBody, group, newMode, newState.row || newState.col || 1);
-        });
-
-        rcSel.addEventListener('change', () => {
-            const newMode = rcSel.parentElement.querySelector('.param-view-select').value;
-            const newState = { mode: newMode };
-            if (newMode === 'row') newState.row = parseInt(rcSel.value);
-            else newState.col = parseInt(rcSel.value);
-            this._saveViewMode(prefix, newState);
-            this._renderMatrixGroupBody(subBody, group, newMode, newState.row || newState.col || 1);
+            this._renderMatrixGroupBody(subBody, group, newMode, newState);
         });
 
         body.appendChild(subPanel);
     }
 
     /** 按当前视图模式重绘矩阵组内容区 */
-    _renderMatrixGroupBody(subBody, group, mode, rcVal) {
+    _renderMatrixGroupBody(subBody, group, mode, viewState) {
         subBody.innerHTML = '';
+        const subscripts = '₀₁₂₃₄₅₆₇₈₉';
 
         if (mode === 'row') {
-            // 按行：只显示指定行的元素
-            const rowElements = group.elements.filter(e => e.row === rcVal);
+            // ── 按行多选：显示勾选行 × 所有列的网格 ──
+            const checked = new Set(viewState.rows || [...Array(group.rows).keys()].map(i => i + 1));
+            if (checked.size === 0) { subBody.appendChild(this._emptyHint('请在下拉中选择至少一行')); return; }
+
             const grid = document.createElement('div');
             grid.className = 'param-matrix-grid';
             grid.style.gridTemplateColumns = `repeat(${group.cols}, 1fr)`;
-            // 按 group.cols 遍历，空位放占位符
-            for (let c = 1; c <= group.cols; c++) {
-                const cell = document.createElement('div');
-                cell.className = 'param-grid-cell';
-                const elem = rowElements.find(e => e.col === c);
-                if (elem) {
-                    const label = document.createElement('span');
-                    label.className = 'param-cell-label';
-                    label.textContent = elem.def.label;
-                    cell.appendChild(label);
-                    this._renderSliderRow(cell, elem.key, elem.def);
+            for (let r = 1; r <= group.rows; r++) {
+                if (!checked.has(r)) continue;
+                for (let c = 1; c <= group.cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'param-grid-cell';
+                    const elem = group.elements.find(e => e.row === r && e.col === c);
+                    if (elem) {
+                        const label = document.createElement('span');
+                        label.className = 'param-cell-label';
+                        label.textContent = elem.def.label;
+                        cell.appendChild(label);
+                        this._renderSliderRow(cell, elem.key, elem.def);
+                    }
+                    grid.appendChild(cell);
                 }
-                grid.appendChild(cell);
             }
             subBody.appendChild(grid);
 
         } else if (mode === 'col') {
-            // 按列：只显示指定列的元素
-            const colElements = group.elements.filter(e => e.col === rcVal);
+            // ── 按列多选：所有行 × 勾选列的网格 ──
+            const checked = new Set(viewState.cols || [...Array(group.cols).keys()].map(i => i + 1));
+            if (checked.size === 0) { subBody.appendChild(this._emptyHint('请在下拉中选择至少一列')); return; }
+
             const grid = document.createElement('div');
             grid.className = 'param-matrix-grid';
-            grid.style.gridTemplateColumns = '1fr';
-            colElements.forEach(elem => {
-                const cell = document.createElement('div');
-                cell.className = 'param-grid-cell';
-                const label = document.createElement('span');
-                label.className = 'param-cell-label';
-                label.textContent = elem.def.label;
-                cell.appendChild(label);
-                this._renderSliderRow(cell, elem.key, elem.def);
-                grid.appendChild(cell);
-            });
+            grid.style.gridTemplateColumns = `repeat(${checked.size}, 1fr)`;
+            for (let r = 1; r <= group.rows; r++) {
+                for (let c = 1; c <= group.cols; c++) {
+                    if (!checked.has(c)) continue;
+                    const cell = document.createElement('div');
+                    cell.className = 'param-grid-cell';
+                    const elem = group.elements.find(e => e.row === r && e.col === c);
+                    if (elem) {
+                        const label = document.createElement('span');
+                        label.className = 'param-cell-label';
+                        label.textContent = elem.def.label;
+                        cell.appendChild(label);
+                        this._renderSliderRow(cell, elem.key, elem.def);
+                    }
+                    grid.appendChild(cell);
+                }
+            }
             subBody.appendChild(grid);
 
         } else if (mode === 'pick') {
-            // 自选：上部勾选网格 + 下部仅显示勾选的滑块
+            // ── 自选模式：勾选网格 + 网格化滑块区（保持行列位置）──
             const picked = new Set(this._loadPick(group.prefix));
             if (picked.size === 0) {
-                // 首次进入自选模式，默认全选
                 group.elements.forEach(e => picked.add(e.key));
             }
 
+            // 勾选网格（紧凑复选框 + 下标标签）
             const pickGrid = document.createElement('div');
             pickGrid.className = 'param-pick-grid';
             pickGrid.style.gridTemplateColumns = `repeat(${group.cols}, 1fr)`;
 
             const onPickChange = () => {
-                // 重建滑块区
-                const sliderArea = subBody.querySelector('.param-pick-sliders');
-                if (!sliderArea) return;
-                sliderArea.innerHTML = '';
+                const sliderGrid = subBody.querySelector('.param-pick-slider-grid');
+                if (!sliderGrid) return;
                 const currentPicked = [];
                 pickGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                     if (cb.checked) currentPicked.push(cb.dataset.pickKey);
                 });
                 this._savePick(group.prefix, currentPicked);
 
+                // 重建网格（保持行列位置，未勾选的格子为空占位）
+                sliderGrid.innerHTML = '';
                 if (currentPicked.length === 0) {
-                    const hint = document.createElement('div');
-                    hint.className = 'param-pick-hint';
-                    hint.textContent = '请在上方勾选需要调节的参数';
-                    sliderArea.appendChild(hint);
+                    const hint = this._emptyHint('请在上方勾选需要调节的参数');
+                    hint.style.gridColumn = `1 / span ${group.cols}`;
+                    sliderGrid.appendChild(hint);
                     return;
                 }
-                group.elements.forEach(elem => {
-                    if (!currentPicked.includes(elem.key)) return;
-                    const row = document.createElement('div');
-                    row.className = 'param-row';
-                    const labelDiv = document.createElement('div');
-                    labelDiv.className = 'param-label';
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'name';
-                    nameSpan.textContent = elem.def.label;
-                    labelDiv.appendChild(nameSpan);
-                    row.appendChild(labelDiv);
-                    const inputRow = document.createElement('div');
-                    inputRow.className = 'param-input-row';
-                    this._renderSliderRow(inputRow, elem.key, elem.def);
-                    row.appendChild(inputRow);
-                    sliderArea.appendChild(row);
-                });
+                const currentSet = new Set(currentPicked);
+                for (let r = 1; r <= group.rows; r++) {
+                    for (let c = 1; c <= group.cols; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'param-grid-cell';
+                        const elem = group.elements.find(e => e.row === r && e.col === c);
+                        if (elem && currentSet.has(elem.key)) {
+                            const label = document.createElement('span');
+                            label.className = 'param-cell-label';
+                            label.textContent = elem.def.label;
+                            cell.appendChild(label);
+                            this._renderSliderRow(cell, elem.key, elem.def);
+                        }
+                        sliderGrid.appendChild(cell);
+                    }
+                }
             };
 
-            // 勾选网格
             for (const elem of group.elements) {
                 const cell = document.createElement('label');
                 cell.className = 'param-pick-cell';
@@ -649,8 +733,6 @@ export class SceneRenderer {
                 cb.checked = picked.has(elem.key);
                 cb.addEventListener('change', onPickChange);
                 cell.appendChild(cb);
-                // 使用下标数字显示（如 ₁₁, ₂₃）
-                const subscripts = '₀₁₂₃₄₅₆₇₈₉';
                 const label = document.createElement('span');
                 label.textContent = subscripts[elem.row] + subscripts[elem.col];
                 cell.appendChild(label);
@@ -658,9 +740,11 @@ export class SceneRenderer {
             }
             subBody.appendChild(pickGrid);
 
-            const sliderArea = document.createElement('div');
-            sliderArea.className = 'param-pick-sliders';
-            subBody.appendChild(sliderArea);
+            // 滑块网格区（保持行列位置的 grid）
+            const sliderGrid = document.createElement('div');
+            sliderGrid.className = 'param-matrix-grid param-pick-slider-grid';
+            sliderGrid.style.gridTemplateColumns = `repeat(${group.cols}, 1fr)`;
+            subBody.appendChild(sliderGrid);
             onPickChange();  // 触发初始渲染
 
         } else {
@@ -680,6 +764,14 @@ export class SceneRenderer {
             });
             subBody.appendChild(grid);
         }
+    }
+
+    /** 空状态提示文字 */
+    _emptyHint(text) {
+        const hint = document.createElement('div');
+        hint.className = 'param-pick-hint';
+        hint.textContent = text;
+        return hint;
     }
 
     /** 渲染"其他"参数组（非矩阵参数） */

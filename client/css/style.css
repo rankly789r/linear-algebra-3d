@@ -982,16 +982,69 @@ body.is-dragging #right-column.no-panels #dock-right {
     flex-shrink: 0;
 }
 
-.param-rc-select {
-    padding: 2px 4px;
-    font-size: 0.66rem;
+/* ── 多选下拉（按行/按列复选框弹出菜单）── */
+.param-multi-sel {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.param-multi-sel-btn {
+    padding: 2px 6px;
+    font-size: 0.64rem;
     font-family: inherit;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 3px;
     color: var(--text-secondary);
     cursor: pointer;
-    flex-shrink: 0;
+    white-space: nowrap;
+}
+.param-multi-sel-btn:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.param-multi-sel-popup {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 3px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 4px 6px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    min-width: 70px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+.param-multi-sel-popup.open {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.param-multi-sel-popup label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    font-size: 0.68rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+.param-multi-sel-popup label:hover {
+    background: var(--bg-hover);
+}
+.param-multi-sel-popup input[type="checkbox"] {
+    margin: 0;
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
 }
 
 .param-sub-panel-body {
