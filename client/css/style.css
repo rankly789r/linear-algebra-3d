@@ -939,10 +939,24 @@ body.is-dragging #right-column.no-panels #dock-right {
 }
 
 .param-sub-panel-arrow {
+    width: 22px;
+    height: 22px;
     font-size: 0.6rem;
     color: var(--text-muted);
-    width: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
     flex-shrink: 0;
+    transition: color 0.15s;
+}
+.param-sub-panel-arrow:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
 }
 
 .param-sub-panel-title {
@@ -979,6 +993,7 @@ body.is-dragging #right-column.no-panels #dock-right {
 .param-sub-panel-body {
     padding: 6px 8px;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     max-height: 320px;
     transition: max-height 0.2s ease, padding 0.2s ease;
 }
@@ -1414,6 +1429,7 @@ body.is-dragging #right-column.no-panels #dock-right {
 .lecture-sub-panel-body {
     padding: 8px 10px;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     max-height: 420px;
     transition: max-height 0.2s ease, padding 0.2s ease;
 }

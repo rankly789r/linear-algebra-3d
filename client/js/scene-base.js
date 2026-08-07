@@ -211,7 +211,8 @@ export class SceneRenderer {
     _detectMatrixGroups() {
         if (!this.meta.params) return { groups: [], otherKeys: [] };
 
-        const matrixElements = {};  // { prefix: [{key, def, row, col}, ...] }
+        const matrixElements = {};  // { prefix: [{key, def, row, col}, ...] } — 两位数后缀
+        const vectorElements = {};  // { prefix: [{key, def, index}, ...] }   — 一位数后缀
         const otherKeys = [];
 
         for (const [key, def] of Object.entries(this.meta.params)) {
@@ -223,19 +224,34 @@ export class SceneRenderer {
                 otherKeys.push(key);
                 continue;
             }
-            const m = key.match(/^([a-zA-Z]+[a-zA-Z0-9_]*?)(\d)(\d)$/);
-            if (m) {
-                const prefix = m[1];
-                const row = parseInt(m[2]);
-                const col = parseInt(m[3]);
+
+            // 尝试匹配两位数后缀（矩阵元素）：a11, a23, b12 ...
+            const m2 = key.match(/^([a-zA-Z]+[a-zA-Z0-9_]*?)(\d)(\d)$/);
+            if (m2) {
+                const prefix = m2[1];
+                const row = parseInt(m2[2]);
+                const col = parseInt(m2[3]);
                 if (!matrixElements[prefix]) matrixElements[prefix] = [];
                 matrixElements[prefix].push({ key, def, row, col });
-            } else {
-                otherKeys.push(key);
+                continue;
             }
+
+            // 尝试匹配一位数后缀（向量元素）：b1, b2, x3 ...
+            const m1 = key.match(/^([a-zA-Z]+[a-zA-Z0-9_]*?)(\d)$/);
+            if (m1) {
+                const prefix = m1[1];
+                const index = parseInt(m1[2]);
+                if (!vectorElements[prefix]) vectorElements[prefix] = [];
+                vectorElements[prefix].push({ key, def, index });
+                continue;
+            }
+
+            otherKeys.push(key);
         }
 
         const groups = [];
+
+        // 处理两位数矩阵组
         for (const [prefix, elements] of Object.entries(matrixElements)) {
             if (elements.length < 2) {
                 elements.forEach(e => otherKeys.push(e.key));
@@ -252,6 +268,37 @@ export class SceneRenderer {
                 cols: maxCol,
             });
         }
+
+        // 处理一位数向量组（列向量：N 个元素 = N×1）
+        for (const [prefix, elements] of Object.entries(vectorElements)) {
+            // 如果该前缀已存在两位数矩阵组，则一位数元素归入"其他"
+            // （避免同一前缀拆成两组，例如既有 b11 又有 b1 时）
+            if (matrixElements[prefix]) {
+                elements.forEach(e => otherKeys.push(e.key));
+                continue;
+            }
+            if (elements.length < 2) {
+                elements.forEach(e => otherKeys.push(e.key));
+                continue;
+            }
+            const maxIndex = Math.max(...elements.map(e => e.index));
+            elements.sort((a, b) => a.index - b.index);
+            // 转换为矩阵元素格式（列向量：row=index, col=1）
+            const asMatrix = elements.map(e => ({
+                key: e.key,
+                def: e.def,
+                row: e.index,
+                col: 1,
+            }));
+            groups.push({
+                prefix,
+                label: `向量 ${prefix.toUpperCase()} (${maxIndex}×1)`,
+                elements: asMatrix,
+                rows: maxIndex,
+                cols: 1,
+            });
+        }
+
         return { groups, otherKeys };
     }
 
@@ -415,10 +462,9 @@ export class SceneRenderer {
         title.className = 'param-sub-panel-title';
         title.textContent = group.label;
 
-        header.appendChild(arrow);
         header.appendChild(title);
 
-        // 视图模式下拉
+        // 视图模式下拉（在折叠按钮左侧）
         const viewSel = document.createElement('select');
         viewSel.className = 'param-view-select';
         ['all', 'row', 'col', 'pick'].forEach(m => {
@@ -445,6 +491,7 @@ export class SceneRenderer {
 
         header.appendChild(viewSel);
         header.appendChild(rcSel);
+        header.appendChild(arrow);
         subPanel.appendChild(header);
 
         // 折叠/展开
@@ -637,8 +684,9 @@ export class SceneRenderer {
 
     /** 渲染"其他"参数组（非矩阵参数） */
     _renderOtherGroup(body, otherKeys) {
+        const collapsed = this._loadGroupCollapsed('_other');
         const subPanel = document.createElement('div');
-        subPanel.className = 'param-sub-panel';
+        subPanel.className = 'param-sub-panel' + (collapsed ? ' collapsed' : '');
         subPanel.dataset.groupPrefix = '_other';
 
         // 标题栏
@@ -646,13 +694,22 @@ export class SceneRenderer {
         header.className = 'param-sub-panel-header';
         const arrow = document.createElement('span');
         arrow.className = 'param-sub-panel-arrow';
-        arrow.textContent = '▼';
+        arrow.textContent = collapsed ? '▶' : '▼';
         const title = document.createElement('span');
         title.className = 'param-sub-panel-title';
         title.textContent = '其他参数';
-        header.appendChild(arrow);
         header.appendChild(title);
+        header.appendChild(arrow);
         subPanel.appendChild(header);
+
+        // 折叠/展开
+        header.addEventListener('click', (e) => {
+            if (e.target.tagName === 'SELECT') return;
+            const nowC = !subPanel.classList.contains('collapsed');
+            subPanel.classList.toggle('collapsed');
+            arrow.textContent = nowC ? '▶' : '▼';
+            this._saveGroupCollapsed('_other', nowC);
+        });
 
         const subBody = document.createElement('div');
         subBody.className = 'param-sub-panel-body';
