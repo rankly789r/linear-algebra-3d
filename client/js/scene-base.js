@@ -716,7 +716,7 @@ export class SceneRenderer {
                 });
                 this._savePick(group.prefix, currentPicked);
 
-                // 重建网格（保持行列位置，未勾选的格子为空占位）
+                // 重建网格：永远保持 N×M 固定结构，未勾选的盖住不销毁
                 sliderGrid.innerHTML = '';
                 if (currentPicked.length === 0) {
                     const hint = this._emptyHint('请在上方勾选需要调节的参数');
@@ -728,14 +728,28 @@ export class SceneRenderer {
                 for (let r = 1; r <= group.rows; r++) {
                     for (let c = 1; c <= group.cols; c++) {
                         const cell = document.createElement('div');
-                        cell.className = 'param-grid-cell';
                         const elem = group.elements.find(e => e.row === r && e.col === c);
-                        if (elem && currentSet.has(elem.key)) {
+                        if (!elem) {
+                            // 安全回退：不该出现（完整矩阵都有元素）
+                            cell.className = 'param-grid-cell param-grid-cell--hidden';
+                            sliderGrid.appendChild(cell);
+                            continue;
+                        }
+                        if (currentSet.has(elem.key)) {
+                            // 勾选了：正常渲染滑块
+                            cell.className = 'param-grid-cell';
                             const label = document.createElement('span');
                             label.className = 'param-cell-label';
                             label.textContent = elem.def.label;
                             cell.appendChild(label);
                             this._renderSliderRow(cell, elem.key, elem.def);
+                        } else {
+                            // 没勾选：盖住，只显示褪色标签，不可交互
+                            cell.className = 'param-grid-cell param-grid-cell--hidden';
+                            const label = document.createElement('span');
+                            label.className = 'param-cell-label';
+                            label.textContent = elem.def.label;
+                            cell.appendChild(label);
                         }
                         sliderGrid.appendChild(cell);
                     }

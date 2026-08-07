@@ -1082,6 +1082,20 @@ body.is-dragging #right-column.no-panels #dock-right {
     padding: 3px 4px;
     background: rgba(255, 255, 255, 0.02);
     border-radius: 4px;
+    min-height: 54px;
+}
+
+.param-grid-cell--hidden {
+    opacity: 0.2;
+    pointer-events: none;
+    background: transparent;
+    justify-content: center;
+    align-items: center;
+}
+
+.param-grid-cell--hidden .param-cell-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
 }
 
 .param-cell-label {
