@@ -553,6 +553,19 @@ export class SceneRenderer {
         }
     }
 
+    /**
+     * 停止当前动画（取消帧回调 + 重置按钮状态）。
+     * 在参数变化、预设切换、AI 应用参数导致 buildScene 重绘前调用。
+     */
+    _stopAnimation() {
+        if (this._animFrameId) {
+            cancelAnimationFrame(this._animFrameId);
+            this._animFrameId = null;
+        }
+        this._animating = false;
+        this._updateAnimButton('▶ 演示动画', false);
+    }
+
     // ─── 讲解面板（子面板：基础讲解 + AI 答疑）───────────
 
     _updateLecturePanel(data) {
@@ -1209,6 +1222,8 @@ export class SceneRenderer {
             this.threeScene.add(newGroup);
             this.sceneObjects = newGroup;
 
+            this._stopAnimation();
+
             try {
                 this.buildScene(result.data);
             } catch (buildErr) {
@@ -1407,6 +1422,9 @@ export class SceneRenderer {
 
             // 保存计算结果供导出等用途
             this._lastComputeResult = result.data;
+
+            // 停止当前动画（防止动画帧回调操作已销毁的 geometry）
+            this._stopAnimation();
 
             // 双缓冲：构建新场景到新的 Group，然后一次性替换
             const oldGroup = this.sceneObjects;
