@@ -365,7 +365,66 @@ export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneNa
     });
 
     // ═══════════════════════════════════════════════════════
-    // 5. 重置按钮
+    // 5. 动画速度子菜单
+    // ═══════════════════════════════════════════════════════
+
+    const animSpeedBody = document.getElementById('settings-anim-speed-body');
+
+    function _loadAnimSpeed() {
+        try {
+            const val = parseFloat(localStorage.getItem('la_anim_speed'));
+            return (val >= 0.25 && val <= 3.0) ? val : 1.0;
+        } catch { return 1.0; }
+    }
+
+    function _saveAnimSpeed(speed) {
+        try { localStorage.setItem('la_anim_speed', String(speed)); } catch {}
+    }
+
+    function _applyAnimSpeed(speed) {
+        const renderer = getRenderer();
+        if (renderer) renderer.animSpeed = speed;
+    }
+
+    (function buildAnimSpeedUI() {
+        const currentSpeed = _loadAnimSpeed();
+
+        const row = document.createElement('div');
+        row.className = 'settings-grid-row';
+
+        const lbl = document.createElement('label');
+        lbl.textContent = '播放速率';
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0.25'; slider.max = '3'; slider.step = '0.25';
+        slider.value = currentSpeed;
+
+        const valSpan = document.createElement('span');
+        valSpan.className = 'settings-grid-value';
+        valSpan.textContent = currentSpeed + 'x';
+
+        slider.addEventListener('input', () => {
+            const speed = parseFloat(slider.value);
+            valSpan.textContent = speed + 'x';
+            _applyAnimSpeed(speed);
+        });
+        slider.addEventListener('change', () => {
+            _saveAnimSpeed(parseFloat(slider.value));
+        });
+
+        row.appendChild(lbl);
+        row.appendChild(slider);
+        row.appendChild(valSpan);
+        animSpeedBody.appendChild(row);
+
+        // 暴露引用给重置按钮
+        animSpeedBody._slider = slider;
+        animSpeedBody._valSpan = valSpan;
+    })();
+
+    // ═══════════════════════════════════════════════════════
+    // 6. 重置按钮
     // ═══════════════════════════════════════════════════════
 
     const resetRow = document.createElement('div');
@@ -394,6 +453,14 @@ export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneNa
             inp.value = colorDefs[i].defHex;
             colorsBody.querySelectorAll('.color-hex')[i].textContent = colorDefs[i].defHex;
         });
+
+        // 重置动画速度
+        _saveAnimSpeed(1.0);
+        _applyAnimSpeed(1.0);
+        if (animSpeedBody._slider) {
+            animSpeedBody._slider.value = 1;
+            animSpeedBody._valSpan.textContent = '1x';
+        }
 
         // 重置参数范围
         _saveParamRanges({});

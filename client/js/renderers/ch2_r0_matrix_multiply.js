@@ -129,7 +129,7 @@ export class MatrixMultiplyRenderer extends SceneRenderer {
     _animFrame() {
         if (!this._animating) return;
         const elapsed = performance.now() - this._animStartTime;
-        let t = Math.min(elapsed / this._animDuration, 1.0);
+        let t = Math.min(elapsed * this.animSpeed / this._animDuration, 1.0);
         t = 1 - Math.pow(1 - t, 3);
 
         this._animT = t;

@@ -48,6 +48,12 @@ export class SceneRenderer {
             try { return localStorage.getItem('la_lecture_ai_collapsed') === '1'; }
             catch { return false; }
         })();
+        this.animSpeed = (() => {      // 全局动画播放速率
+            try {
+                const val = parseFloat(localStorage.getItem('la_anim_speed'));
+                return (val >= 0.25 && val <= 3.0) ? val : 1.0;
+            } catch { return 1.0; }
+        })();
         this._subPanelOrder = (() => {  // 子面板排列顺序（持久化）
             try {
                 const saved = localStorage.getItem('la_lecture_subpanel_order');

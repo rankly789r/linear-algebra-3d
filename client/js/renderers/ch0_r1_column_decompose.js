@@ -234,7 +234,7 @@ export class ColumnDecomposeRenderer extends SceneRenderer {
         if (!this._animating) return;
 
         const elapsed = performance.now() - this._animStartTime;
-        let t = Math.min(elapsed / this._animDuration, 1.0);
+        let t = Math.min(elapsed * this.animSpeed / this._animDuration, 1.0);
 
         // 缓出函数（ease-out cubic）
         t = 1 - Math.pow(1 - t, 3);
