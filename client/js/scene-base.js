@@ -535,6 +535,54 @@ export class SceneRenderer {
         row.appendChild(playBtn);
 
         body.insertBefore(row, body.firstChild);
+
+        // ─── 进度条滑块 ───
+        const progressRow = document.createElement('div');
+        progressRow.className = 'anim-progress-row';
+        progressRow.style.cssText = 'margin-bottom:8px;display:flex;align-items:center;gap:6px;' +
+            'padding:2px 0;';
+
+        const progressSlider = document.createElement('input');
+        progressSlider.type = 'range';
+        progressSlider.className = 'anim-progress-slider';
+        progressSlider.min = '0';
+        progressSlider.max = '100';
+        progressSlider.value = '0';
+        progressSlider.style.cssText =
+            'flex:1;height:4px;-webkit-appearance:none;appearance:none;' +
+            'background:var(--border);border-radius:2px;outline:none;margin:0;';
+        // 滑块进度条在此场景的 _updateAnimProgress 中实时更新
+
+        const progressLabel = document.createElement('span');
+        progressLabel.className = 'anim-progress-label';
+        progressLabel.textContent = '0%';
+        progressLabel.style.cssText =
+            'min-width:32px;text-align:right;font-size:0.7rem;color:var(--text-secondary);';
+
+        // 拖动进度条 → 暂停动画 + 跳转到对应帧
+        progressSlider.addEventListener('input', () => {
+            const t = parseInt(progressSlider.value) / 100;
+            progressLabel.textContent = Math.round(t * 100) + '%';
+            // 暂停自动动画
+            if (this._animFrameId) {
+                cancelAnimationFrame(this._animFrameId);
+                this._animFrameId = null;
+            }
+            this._animating = false;
+            this._updateAnimButton('▶ 演示动画', false);
+            // 跳到对应帧
+            if (typeof this._interpolateToT === 'function') {
+                this._interpolateToT(t);
+            }
+        });
+
+        progressRow.appendChild(progressSlider);
+        progressRow.appendChild(progressLabel);
+        body.insertBefore(progressRow, row.nextSibling);
+
+        // 保存引用供 _updateAnimProgress 使用
+        this._animProgressSlider = progressSlider;
+        this._animProgressLabel = progressLabel;
     }
 
     /**
@@ -550,6 +598,20 @@ export class SceneRenderer {
             btn.textContent = text;
             btn.disabled = disabled;
             btn.style.opacity = disabled ? '0.6' : '1';
+        }
+    }
+
+    /**
+     * 更新动画进度条（每帧调用）。
+     * @param {number} t - 动画进度 [0, 1]
+     */
+    _updateAnimProgress(t) {
+        if (this._animProgressSlider) {
+            const pct = Math.round(t * 100);
+            this._animProgressSlider.value = pct;
+            if (this._animProgressLabel) {
+                this._animProgressLabel.textContent = pct + '%';
+            }
         }
     }
 

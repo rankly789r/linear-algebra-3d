@@ -146,6 +146,7 @@ export class ElemTransformBaseRenderer extends SceneRenderer {
         let t = Math.min(elapsed * this.animSpeed / this._animDuration, 1.0);
         t = 1 - Math.pow(1 - t, 3);
         this._animT = t;
+        this._updateAnimProgress(t);
         this._interpolateToT(t);
         if (t < 1.0) {
             this._animFrameId = requestAnimationFrame(() => this._animFrame());

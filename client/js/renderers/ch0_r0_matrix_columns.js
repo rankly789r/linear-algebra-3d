@@ -171,6 +171,7 @@ export class MatrixColumnsRenderer extends SceneRenderer {
         t = 1 - Math.pow(1 - t, 3);
 
         this._animT = t;
+        this._updateAnimProgress(t);
         this._interpolateToT(t);
 
         if (t < 1.0) {
