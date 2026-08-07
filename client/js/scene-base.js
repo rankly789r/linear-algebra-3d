@@ -510,14 +510,20 @@ export class SceneRenderer {
                 checkedSet = new Set(liveState.rows || [...Array(group.rows).keys()].map(i => i + 1));
                 labelFn = r => '行' + subscripts[r];
                 stateKey = 'rows';
-            } else {
+            } else if (liveMode === 'col') {
                 count = group.cols;
                 checkedSet = new Set(liveState.cols || [...Array(group.cols).keys()].map(i => i + 1));
                 labelFn = c => '列' + subscripts[c];
                 stateKey = 'cols';
+            } else {
+                // 'all' / 'pick' 等模式不应出现弹窗，但做安全回退
+                count = group.cols;
+                checkedSet = new Set([...Array(group.cols).keys()].map(i => i + 1));
+                labelFn = c => '列' + subscripts[c];
+                stateKey = 'cols';
             }
 
-            const currentMode = liveMode;
+            const currentMode = liveMode === 'row' ? 'row' : 'col';
             for (let i = 1; i <= count; i++) {
                 const lbl = document.createElement('label');
                 const cb = document.createElement('input');
@@ -525,20 +531,25 @@ export class SceneRenderer {
                 cb.value = i;
                 cb.checked = checkedSet.has(i);
                 cb.addEventListener('change', () => {
-                    const arr = [];
-                    msPopup.querySelectorAll('input[type="checkbox"]').forEach(c => {
-                        if (c.checked) arr.push(parseInt(c.value));
-                    });
-                    const newState = { mode: currentMode };
-                    newState[stateKey] = arr;
-                    this._saveViewMode(prefix, newState);
-                    // 更新按钮文字
-                    msBtn.textContent = (arr.length === count ? '全部' : arr.map(n => subscripts[n]).join(',')) + ' ▾';
-                    // 重绘内容区
-                    this._renderMatrixGroupBody(subBody, group, currentMode, newState);
+                    try {
+                        const arr = [];
+                        msPopup.querySelectorAll('input[type="checkbox"]').forEach(c => {
+                            if (c.checked) arr.push(parseInt(c.value));
+                        });
+                        const newState = { mode: currentMode };
+                        newState[stateKey] = arr;
+                        this._saveViewMode(prefix, newState);
+                        // 更新按钮文字
+                        msBtn.textContent = (arr.length === count ? '全部' : arr.map(n => subscripts[n]).join(',')) + ' ▾';
+                        // 重绘内容区
+                        this._renderMatrixGroupBody(subBody, group, currentMode, newState);
+                    } catch (e) {
+                        console.error('多选弹窗更新失败:', e);
+                    }
                 });
-                lbl.appendChild(cb);
+                // 复选框放右侧：先放文字标签，再放勾选框
                 lbl.appendChild(document.createTextNode(labelFn(i)));
+                lbl.appendChild(cb);
                 msPopup.appendChild(lbl);
             }
         };
@@ -548,7 +559,7 @@ export class SceneRenderer {
             if (mode === 'row') {
                 const rows = viewState.rows || [...Array(group.rows).keys()].map(i => i + 1);
                 msBtn.textContent = (rows.length === group.rows ? '全部' : rows.map(n => subscripts[n]).join(',')) + ' ▾';
-            } else {
+            } else if (mode === 'col') {
                 const cols = viewState.cols || [...Array(group.cols).keys()].map(i => i + 1);
                 msBtn.textContent = (cols.length === group.cols ? '全部' : cols.map(n => subscripts[n]).join(',')) + ' ▾';
             }
@@ -598,23 +609,27 @@ export class SceneRenderer {
 
         // 视图模式切换
         viewSel.addEventListener('change', () => {
-            const newMode = viewSel.value;
-            const newState = { mode: newMode };
-            if (newMode === 'row') {
-                newState.rows = [...Array(group.rows).keys()].map(i => i + 1);
-            } else if (newMode === 'col') {
-                newState.cols = [...Array(group.cols).keys()].map(i => i + 1);
+            try {
+                const newMode = viewSel.value;
+                const newState = { mode: newMode };
+                if (newMode === 'row') {
+                    newState.rows = [...Array(group.rows).keys()].map(i => i + 1);
+                } else if (newMode === 'col') {
+                    newState.cols = [...Array(group.cols).keys()].map(i => i + 1);
+                }
+                this._saveViewMode(prefix, newState);
+                // 更新下拉按钮可见性
+                multiSel.style.display = (newMode === 'row' || newMode === 'col') ? '' : 'none';
+                // 更新按钮文字
+                if (newMode === 'row' || newMode === 'col') {
+                    const tmp = newMode === 'row' ? (newState.rows.length === group.rows ? '全部' : newState.rows.map(n => subscripts[n]).join(','))
+                        : (newState.cols.length === group.cols ? '全部' : newState.cols.map(n => subscripts[n]).join(','));
+                    msBtn.textContent = tmp + ' ▾';
+                }
+                this._renderMatrixGroupBody(subBody, group, newMode, newState);
+            } catch (e) {
+                console.error('视图模式切换失败:', e);
             }
-            this._saveViewMode(prefix, newState);
-            // 更新下拉按钮可见性
-            multiSel.style.display = (newMode === 'row' || newMode === 'col') ? '' : 'none';
-            // 更新按钮文字
-            if (newMode === 'row' || newMode === 'col') {
-                const tmp = newMode === 'row' ? (newState.rows.length === group.rows ? '全部' : newState.rows.map(n => subscripts[n]).join(','))
-                    : (newState.cols.length === group.cols ? '全部' : newState.cols.map(n => subscripts[n]).join(','));
-                msBtn.textContent = tmp + ' ▾';
-            }
-            this._renderMatrixGroupBody(subBody, group, newMode, newState);
         });
 
         body.appendChild(subPanel);

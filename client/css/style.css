@@ -929,7 +929,7 @@ body.is-dragging #right-column.no-panels #dock-right {
     border: 1px solid var(--border);
     border-radius: 6px;
     margin-bottom: 8px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .param-sub-panel-header {
@@ -940,6 +940,11 @@ body.is-dragging #right-column.no-panels #dock-right {
     background: var(--bg-tertiary);
     cursor: pointer;
     user-select: none;
+    border-radius: 6px 6px 0 0;
+}
+
+.param-sub-panel.collapsed .param-sub-panel-header {
+    border-radius: 6px;
 }
 
 .param-sub-panel-arrow {
@@ -989,8 +994,8 @@ body.is-dragging #right-column.no-panels #dock-right {
 }
 
 .param-multi-sel-btn {
-    padding: 2px 6px;
-    font-size: 0.64rem;
+    padding: 2px 7px;
+    font-size: 0.72rem;
     font-family: inherit;
     background: var(--bg-primary);
     border: 1px solid var(--border);
@@ -1029,9 +1034,10 @@ body.is-dragging #right-column.no-panels #dock-right {
 .param-multi-sel-popup label {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 4px;
-    font-size: 0.68rem;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 3px 6px;
+    font-size: 0.72rem;
     color: var(--text-primary);
     cursor: pointer;
     border-radius: 2px;
@@ -1053,6 +1059,7 @@ body.is-dragging #right-column.no-panels #dock-right {
     scrollbar-gutter: stable;
     max-height: 320px;
     transition: max-height 0.2s ease, padding 0.2s ease;
+    border-radius: 0 0 6px 6px;
 }
 
 .param-sub-panel.collapsed .param-sub-panel-body {
