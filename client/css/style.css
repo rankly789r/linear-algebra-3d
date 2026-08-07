@@ -724,6 +724,7 @@ body.is-dragging #right-column.no-panels #dock-right {
     padding: 8px 10px;
     overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-gutter: stable;
     flex: 1;
     max-height: 420px;
     transition: max-height 0.2s ease, padding 0.2s ease;
