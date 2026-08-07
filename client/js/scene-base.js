@@ -533,6 +533,7 @@ export class SceneRenderer {
             if (typeof this._startAnimation === 'function') this._startAnimation();
         });
         row.appendChild(playBtn);
+        this._animBtn = playBtn;
 
         body.insertBefore(row, body.firstChild);
 
@@ -563,13 +564,7 @@ export class SceneRenderer {
         progressSlider.addEventListener('input', () => {
             const t = parseInt(progressSlider.value) / 100;
             progressLabel.textContent = Math.round(t * 100) + '%';
-            // 暂停自动动画
-            if (this._animFrameId) {
-                cancelAnimationFrame(this._animFrameId);
-                this._animFrameId = null;
-            }
-            this._animating = false;
-            this._updateAnimButton('▶ 演示动画', false);
+            this._stopAnimation();
             // 跳到对应帧
             if (typeof this._interpolateToT === 'function') {
                 this._interpolateToT(t);
@@ -591,9 +586,7 @@ export class SceneRenderer {
      * @param {boolean} disabled - 是否禁用
      */
     _updateAnimButton(text, disabled) {
-        const panel = this._panel('solution');
-        if (!panel) return;
-        const btn = panel.body.querySelector('.anim-replay-btn');
+        const btn = this._animBtn;
         if (btn) {
             btn.textContent = text;
             btn.disabled = disabled;
@@ -623,6 +616,14 @@ export class SceneRenderer {
         if (this._animFrameId) {
             cancelAnimationFrame(this._animFrameId);
             this._animFrameId = null;
+        }
+        if (this._animTimeout) {
+            clearTimeout(this._animTimeout);
+            this._animTimeout = null;
+        }
+        if (this._animStartTimer) {
+            clearTimeout(this._animStartTimer);
+            this._animStartTimer = null;
         }
         this._animating = false;
         this._updateAnimButton('▶ 演示动画', false);

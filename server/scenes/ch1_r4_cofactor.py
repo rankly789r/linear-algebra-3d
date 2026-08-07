@@ -171,7 +171,6 @@ class Ch1R4Cofactor(BaseScene):
 
         # ── 第 4 步：构建 verification ──
         checks = [
-            {"label": f"det(A) = {det_A:.4f}", "passed": True},
             {
                 "label": f"a·(b×c) = {det_via_dot:.4f} = det(A)",
                 "passed": abs(det_via_dot - det_A) < 1e-8,

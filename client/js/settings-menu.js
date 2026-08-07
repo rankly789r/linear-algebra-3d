@@ -61,6 +61,7 @@ function updateGridRenderer(range) {
  * @param {Function} opts.getSceneMeta - (sceneName) => meta
  * @param {Function} opts.getSceneName - () => currentSceneName
  * @param {Function} opts.getRenderer - () => currentSceneRenderer
+ * @param {Function} [opts.getControls] - () => OrbitControls 实例（可选，用于鼠标交互设置）
  */
 export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneName, getRenderer, getControls }) {
     _scene = scene;
@@ -382,6 +383,7 @@ export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneNa
     }
 
     function _applyAnimSpeed(speed) {
+        if (speed < 0.25 || speed > 3.0) return;
         const renderer = getRenderer();
         if (renderer) renderer.animSpeed = speed;
     }
@@ -458,6 +460,15 @@ export function initSettingsMenu({ scene, panelManager, getSceneMeta, getSceneNa
     }
 
     (function buildMouseBtnUI() {
+        if (!getControls) {
+            // getControls 未注入 → 隐藏鼠标交互设置项，避免静默失效
+            const l1 = menu.querySelector('.settings-l1[data-section="mouse-btn"]');
+            const l2 = menu.querySelector('.settings-l2-container[data-section="mouse-btn"]');
+            if (l1) l1.style.display = 'none';
+            if (l2) l2.style.display = 'none';
+            return;
+        }
+
         const swapped = _loadMouseSwap();
         _applyMouseButtons(swapped);
 

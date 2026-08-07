@@ -37,8 +37,7 @@ export class CofactorRenderer extends SceneRenderer {
         // ─── 法向量 n = b×c（余子式向量） ──────────────
         if (hasNormal) {
             group.add(drawVector(n_bc, COLORS.subSpace, 'n=b×c', null, 0.9));
-            // 法向量方向的半透明辅助线（从原点沿 n 方向延伸）
-            const n_unit = n_bc.clone().normalize();
+            // n 方向辅助线（从原点沿 n 方向延伸）
             const n_tip = n_bc.clone();
             // 画一个稍长一点的线段帮助看方向
             group.add(drawLine(
