@@ -1140,9 +1140,9 @@ export class SceneRenderer {
             applyBtn.disabled = true;
             applyBtn.textContent = '⏳';
             ignoreBtn.disabled = true;
-            await this._applyAIParams(toolCall.params, card);
-            // 标记已处理，避免重新渲染时再次出现
+            // 提前标记已处理，防止 _applyAIParams 内部触发的重渲染复活卡片
             toolCall._applied = true;
+            await this._applyAIParams(toolCall.params, card);
         });
 
         const ignoreBtn = document.createElement('button');
@@ -1220,7 +1220,8 @@ export class SceneRenderer {
             this._updateVerifyPanel(result.data);
             this._updateMatrixDisplay(result.data);
 
-            this._replaceToolCard(cardEl, 'success', '✓ 参数已应用，验证通过');
+            // 成功：直接移除确认卡片，3D 画面变化即为视觉反馈
+            cardEl.remove();
         } catch (err) {
             this._replaceToolCard(cardEl, 'error', `应用失败: ${err.message}`);
         }
