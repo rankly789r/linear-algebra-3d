@@ -204,11 +204,11 @@ body {
     z-index: 5;
 }
 
-/* ── 设置菜单（全局悬浮，取代旧的 panel-vis-toggle）── */
+/* ── 设置菜单（位于场景标题头右上角）── */
 #settings-toggle {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 8px;
+    right: 8px;
     z-index: 100;
     width: 30px;
     height: 30px;
@@ -233,8 +233,9 @@ body {
 
 .settings-menu {
     position: absolute;
-    top: 46px;
-    right: 10px;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
     z-index: 101;
     min-width: 220px;
     max-width: 270px;
@@ -536,12 +537,14 @@ body.is-dragging #right-column.no-panels #dock-right {
     font-weight: 600;
     margin-bottom: 4px;
     color: var(--text-primary);
+    padding-right: 44px;  /* 给右上角设置按钮让位 */
 }
 
 #scene-desc {
     font-size: 0.78rem;
     color: var(--text-secondary);
     line-height: 1.5;
+    padding-right: 44px;  /* 给右上角设置按钮让位 */
 }
 
 /* ===== 停靠区通用样式 ===== */
