@@ -7,7 +7,6 @@ DeepSeek API 兼容 OpenAI Chat Completions 格式（含 tools/tool_calls）。
 import os
 import json
 import httpx
-import certifi
 
 # DeepSeek API 配置
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
@@ -136,7 +135,7 @@ async def _call_deepseek_api(api_key: str, request_body: dict) -> tuple[dict | N
     返回 (response_dict, None) 成功，或 (None, error_message) 失败。
     """
     try:
-        async with httpx.AsyncClient(timeout=60.0, verify=certifi.where()) as client:
+        async with httpx.AsyncClient(timeout=60.0, verify=True) as client:
             response = await client.post(
                 f"{DEEPSEEK_BASE_URL}/chat/completions",
                 headers={
