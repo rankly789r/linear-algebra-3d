@@ -189,12 +189,8 @@ export class ColumnDecomposeRenderer extends SceneRenderer {
         );
         this.sceneObjects.add(dot);
 
-        // ─── 根据开关状态决定是否自动播放 ────────────────
-        if (this._isAnimAutoEnabled('la_ch0r1_anim_auto')) {
-            this._animTimeout = setTimeout(() => this._startAnimation(), 350);
-        } else {
-            this._setToTarget();
-        }
+        // ─── 直接显示最终状态（用户可点「演示动画」手动播放） ──
+        this._setToTarget();
     }
 
     // ═══════════════════════════════════════════════════════
@@ -203,7 +199,7 @@ export class ColumnDecomposeRenderer extends SceneRenderer {
 
     async _computeAndRender(params, showLoading) {
         await super._computeAndRender(params, showLoading);
-        this._addAnimControlUI('la_ch0r1_anim_auto');
+        this._addAnimControlUI();
     }
 
     // ═══════════════════════════════════════════════════════

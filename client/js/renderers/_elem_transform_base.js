@@ -29,7 +29,6 @@ export class ElemTransformBaseRenderer extends SceneRenderer {
      */
     static CONFIG = {
         color: 0xffd166,
-        storageKey: 'la_chXrX_anim_auto',
     };
 
     /** 便捷访问子类配置 */
@@ -121,13 +120,13 @@ export class ElemTransformBaseRenderer extends SceneRenderer {
         gSprite.scale.set(is3D ? 2.0 : 1.5, 0.5, 1);
         group.add(gSprite);
 
-        this._addAnimControlUI(this._cfg.storageKey);
+        this._addAnimControlUI();
         this._interpolateToT(1.0);
     }
 
     async _computeAndRender(params, showLoading) {
         await super._computeAndRender(params, showLoading);
-        this._addAnimControlUI(this._cfg.storageKey);
+        this._addAnimControlUI();
     }
 
     _startAnimation() {

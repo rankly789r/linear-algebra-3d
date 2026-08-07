@@ -9,6 +9,5 @@ import { ElemTransformBaseRenderer } from './_elem_transform_base.js';
 export class Ch3R12ElemRowRenderer extends ElemTransformBaseRenderer {
     static CONFIG = {
         color: 0xffd166,                    // EA: yellow
-        storageKey: 'la_ch3r12_anim_auto',
     };
 }

@@ -100,7 +100,7 @@ export class RankIntuitionRenderer extends SceneRenderer {
         group.add(this._rankAnnotations);
 
         // ─── 动画按钮 + 立即显示最终状态 ─────────────────
-        this._addAnimControlUI('la_ch3r0_anim_auto');
+        this._addAnimControlUI();
         this._interpolateToT(1.0);
         this._showAnnotations();
     }
@@ -110,7 +110,7 @@ export class RankIntuitionRenderer extends SceneRenderer {
     // ═══════════════════════════════════════════════════════
     async _computeAndRender(params, showLoading) {
         await super._computeAndRender(params, showLoading);
-        this._addAnimControlUI('la_ch3r0_anim_auto');
+        this._addAnimControlUI();
     }
 
     _startAnimation() {

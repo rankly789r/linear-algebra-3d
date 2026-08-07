@@ -119,14 +119,8 @@ export class MatrixColumnsRenderer extends SceneRenderer {
         this.sceneObjects.add(originDot);
 
         // ─── 动画按钮 ─────────────────────────────────────
-        this._addAnimControlUI('la_ch0r0_anim_auto');
-
-        // 根据开关状态决定是否自动播放
-        if (this._isAnimAutoEnabled('la_ch0r0_anim_auto')) {
-            this._animStartTimer = setTimeout(() => this._startAnimation(), 300);
-        } else {
-            this._setToTarget();
-        }
+        this._addAnimControlUI();
+        this._setToTarget();
     }
 
     /** 添加一个 sprite 标签到箭头组 */

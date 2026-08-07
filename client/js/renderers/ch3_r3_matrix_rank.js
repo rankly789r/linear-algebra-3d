@@ -98,7 +98,7 @@ export class MatrixRankRenderer extends SceneRenderer {
         }
 
         // ─── 动画按钮 + 立即显示最终状态 ─────────────────
-        this._addAnimControlUI('la_ch3r3_anim_auto');
+        this._addAnimControlUI();
         this._interpolateToT(1.0);
         if (this._degenerateFace) this._degenerateFace.material.opacity = 0.25;
     }
@@ -108,7 +108,7 @@ export class MatrixRankRenderer extends SceneRenderer {
     // ═══════════════════════════════════════════════════════
     async _computeAndRender(params, showLoading) {
         await super._computeAndRender(params, showLoading);
-        this._addAnimControlUI('la_ch3r3_anim_auto');
+        this._addAnimControlUI();
     }
 
     _startAnimation() {

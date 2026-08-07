@@ -127,14 +127,14 @@ export class MatrixCalculatorRenderer extends SceneRenderer {
         });
 
         // ─── 动画按钮 + 立即显示最终状态 ─────────────────
-        this._addAnimControlUI('la_matrix_calc_anim_auto');
+        this._addAnimControlUI();
         this._interpolateToT(1.0);
     }
 
     // ═══════════════════════════════════════════════════════
     async _computeAndRender(params, showLoading) {
         await super._computeAndRender(params, showLoading);
-        this._addAnimControlUI('la_matrix_calc_anim_auto');
+        this._addAnimControlUI();
     }
 
     _startAnimation() {

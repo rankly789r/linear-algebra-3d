@@ -129,7 +129,7 @@ export class DetAreaRenderer extends SceneRenderer {
         group.add(sprite);
 
         // ─── 动画按钮 + 立即显示最终状态 ─────────────────
-        this._addAnimControlUI('la_ch1r0_anim_auto');
+        this._addAnimControlUI();
         this._interpolateToT(1.0);
         if (this._diagLine) this._diagLine.children[0].material.opacity = 0.6;
     }
@@ -137,7 +137,7 @@ export class DetAreaRenderer extends SceneRenderer {
     // ═══════════════════════════════════════════════════════
     async _computeAndRender(params, showLoading) {
         await super._computeAndRender(params, showLoading);
-        this._addAnimControlUI('la_ch1r0_anim_auto');
+        this._addAnimControlUI();
     }
 
     _startAnimation() {
