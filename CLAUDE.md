@@ -137,6 +137,8 @@ Response: { success, data: { reply: "..." } }
 - **端口**：`http://localhost:8765`
 - **Three.js**：0.160.0（本地文件 `client/js/vendor/`）
 - **KaTeX**：0.16.11（CDN，需网络）
+- **GitHub 远程仓库**：`https://github.com/rankly789r/linear-algebra-3d`
+  - Git 代理已配置：`http.proxy = http://127.0.0.1:7897`（推送/拉取前确保梯子开启）
 
 ## 八、常见操作
 
