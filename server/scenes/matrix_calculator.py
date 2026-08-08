@@ -100,7 +100,7 @@ class MatrixCalculator(BaseScene):
                     },
                 },
                 {
-                    "label": "转置与行列式",
+                    "label": "行列式计算",
                     "type": "unique",
                     "params": {
                         "operation": "determinant",

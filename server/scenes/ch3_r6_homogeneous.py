@@ -35,11 +35,11 @@ class Ch3R6Homogeneous(BaseScene):
                 "b2":{"label":"b₂","type":"float","default":0,"min":-5,"max":5,"step":0.1},
             },
             "presets": [
-                {"label": "r=2 齐次→唯一点", "type": "unique",
+                {"label": "r=2 齐次→一条直线", "type": "infinite",
                  "params": {"a11":1,"a12":1,"a13":1,"b1":0, "a21":1,"a22":-1,"a23":0,"b2":0}},
                 {"label": "r=1 齐次→一个面", "type": "infinite",
                  "params": {"a11":1,"a12":1,"a13":1,"b1":0, "a21":2,"a22":2,"a23":2,"b2":0}},
-                {"label": "非齐次→平移的线", "type": "unique",
+                {"label": "非齐次→平移的线", "type": "infinite",
                  "params": {"a11":1,"a12":1,"a13":1,"b1":2, "a21":1,"a22":-1,"a23":0,"b2":0}},
                 {"label": "非齐次无解", "type": "none",
                  "params": {"a11":1,"a12":1,"a13":1,"b1":2, "a21":2,"a22":2,"a23":2,"b2":5}},

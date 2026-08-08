@@ -34,7 +34,7 @@ class Ch3R1TwoVectors(BaseScene):
                  "params": {"v1x": 2, "v1y": 0, "v1z": 0, "v2x": 4, "v2y": 0, "v2z": 0}},
                 {"label": "反向共线", "type": "degenerate",
                  "params": {"v1x": 2, "v1y": 0, "v1z": 0, "v2x": -3, "v2y": 0, "v2z": 0}},
-                {"label": "三维不共面", "type": "unique",
+                {"label": "不共线（斜交）", "type": "unique",
                  "params": {"v1x": 2, "v1y": 1, "v1z": 0, "v2x": 0, "v2y": 2, "v2z": 1}},
             ]
         }

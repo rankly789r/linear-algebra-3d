@@ -30,16 +30,26 @@ class Ch3R8RankProperties(BaseScene):
                 "a22":{"label":"a₂₂","type":"float","default":1,"min":-3,"max":3,"step":0.1},
                 "a31":{"label":"a₃₁","type":"float","default":0,"min":-3,"max":3,"step":0.1},
                 "a32":{"label":"a₃₂","type":"float","default":0,"min":-3,"max":3,"step":0.1},
+                "b11":{"label":"b₁₁","type":"float","default":1,"min":-3,"max":3,"step":0.1},
+                "b12":{"label":"b₁₂","type":"float","default":0,"min":-3,"max":3,"step":0.1},
+                "b13":{"label":"b₁₃","type":"float","default":0,"min":-3,"max":3,"step":0.1},
+                "b21":{"label":"b₂₁","type":"float","default":0,"min":-3,"max":3,"step":0.1},
+                "b22":{"label":"b₂₂","type":"float","default":1,"min":-3,"max":3,"step":0.1},
+                "b23":{"label":"b₂₃","type":"float","default":0,"min":-3,"max":3,"step":0.1},
             },
             "presets": [
                 {"label": "r(A)=r(Aᵀ)=2", "type": "unique",
-                 "params": {"a11":1,"a12":2, "a21":3,"a22":1, "a31":0,"a32":0}},
+                 "params": {"a11":1,"a12":2, "a21":3,"a22":1, "a31":0,"a32":0,
+                            "b11":1,"b12":0,"b13":0, "b21":0,"b22":1,"b23":0}},
                 {"label": "r(A)=r(Aᵀ)=1", "type": "degenerate",
-                 "params": {"a11":1,"a12":2, "a21":2,"a22":4, "a31":3,"a32":6}},
-                {"label": "AB vs r(A),r(B)", "type": "unique",
-                 "params": {"a11":1,"a12":0, "a21":0,"a22":1, "a31":0,"a32":0}},
-                {"label": "r(AB)严格小于", "type": "degenerate",
-                 "params": {"a11":1,"a12":0, "a21":0,"a22":0, "a31":0,"a32":0}},
+                 "params": {"a11":1,"a12":2, "a21":2,"a22":4, "a31":3,"a32":6,
+                            "b11":1,"b12":0,"b13":0, "b21":0,"b22":1,"b23":0}},
+                {"label": "r(AB)=min（乘积秩=最小秩）", "type": "unique",
+                 "params": {"a11":1,"a12":0, "a21":0,"a22":1, "a31":0,"a32":0,
+                            "b11":1,"b12":0,"b13":0, "b21":0,"b22":1,"b23":0}},
+                {"label": "r(AB)<min（严格小于）", "type": "degenerate",
+                 "params": {"a11":1,"a12":0, "a21":0,"a22":0, "a31":0,"a32":0,
+                            "b11":0,"b12":0,"b13":0, "b21":1,"b22":0,"b23":0}},
             ]
         }
 
@@ -54,11 +64,10 @@ class Ch3R8RankProperties(BaseScene):
         A_T = A.T  # 2×3
         rank_AT = M.matrix_rank(A_T)
 
-        # 定义一个配套的 B(2×3) 矩阵来展示 r(AB)
-        # B 取 A 的前两行构成 2×3 矩阵
+        # 从参数构造 B(2×3) 矩阵
         B = np.array([
-            [1, 0, 0],
-            [0, 1, 0],
+            [params.get("b11",1), params.get("b12",0), params.get("b13",0)],
+            [params.get("b21",0), params.get("b22",1), params.get("b23",0)],
         ], dtype=float)
         rank_B = M.matrix_rank(B)
 

@@ -709,7 +709,7 @@ function getSceneMeta(sceneName) {
                 { label: '线性无关', type: 'unique', params: { v1x: 2, v1y: 0, v1z: 0, v2x: 0, v2y: 3, v2z: 0 } },
                 { label: '线性相关（共线）', type: 'degenerate', params: { v1x: 2, v1y: 0, v1z: 0, v2x: 4, v2y: 0, v2z: 0 } },
                 { label: '反向共线', type: 'degenerate', params: { v1x: 2, v1y: 0, v1z: 0, v2x: -3, v2y: 0, v2z: 0 } },
-                { label: '三维不共面', type: 'unique', params: { v1x: 2, v1y: 1, v1z: 0, v2x: 0, v2y: 2, v2z: 1 } },
+                { label: '不共线（斜交）', type: 'unique', params: { v1x: 2, v1y: 1, v1z: 0, v2x: 0, v2y: 2, v2z: 1 } },
             ]
         },
         'ch3_r2_three_vectors': {
@@ -898,11 +898,18 @@ function getSceneMeta(sceneName) {
                 a22:{label:'a₂₂',type:'float',default:1,min:-5,max:5,step:0.1},
                 a31:{label:'a₃₁',type:'float',default:0,min:-5,max:5,step:0.1},
                 a32:{label:'a₃₂',type:'float',default:0,min:-5,max:5,step:0.1},
+                b11:{label:'b₁₁',type:'float',default:1,min:-5,max:5,step:0.1},
+                b12:{label:'b₁₂',type:'float',default:0,min:-5,max:5,step:0.1},
+                b13:{label:'b₁₃',type:'float',default:0,min:-5,max:5,step:0.1},
+                b21:{label:'b₂₁',type:'float',default:0,min:-5,max:5,step:0.1},
+                b22:{label:'b₂₂',type:'float',default:1,min:-5,max:5,step:0.1},
+                b23:{label:'b₂₃',type:'float',default:0,min:-5,max:5,step:0.1},
             },
             presets: [
-                { label: 'r(A)=r(Aᵀ)', type: 'unique', params: { a11:1,a12:2, a21:3,a22:1, a31:0,a32:0 } },
-                { label: 'r(AB)≤min(r(A),r(B))', type: 'unique', params: { a11:1,a12:0, a21:0,a22:1, a31:0,a32:0 } },
-                { label: 'AB=0矩阵', type: 'degenerate', params: { a11:1,a12:0, a21:0,a22:0, a31:0,a32:0 } },
+                { label: 'r(A)=r(Aᵀ)=2', type: 'unique', params: { a11:1,a12:2,a21:3,a22:1,a31:0,a32:0, b11:1,b12:0,b13:0,b21:0,b22:1,b23:0 } },
+                { label: 'r(A)=r(Aᵀ)=1', type: 'degenerate', params: { a11:1,a12:2,a21:2,a22:4,a31:3,a32:6, b11:1,b12:0,b13:0,b21:0,b22:1,b23:0 } },
+                { label: 'r(AB)=min（乘积秩=最小秩）', type: 'unique', params: { a11:1,a12:0,a21:0,a22:1,a31:0,a32:0, b11:1,b12:0,b13:0,b21:0,b22:1,b23:0 } },
+                { label: 'r(AB)<min（严格小于）', type: 'degenerate', params: { a11:1,a12:0,a21:0,a22:0,a31:0,a32:0, b11:0,b12:0,b13:0,b21:1,b22:0,b23:0 } },
             ]
         },
 
